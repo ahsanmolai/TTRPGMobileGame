@@ -18,8 +18,10 @@ import {
   chooseEnemyAction,
   CombatLogEntry,
 } from 'src/engine/combat';
-import { CharacterStats, calculateAC } from 'src/engine/character';
+import { CharacterStats, calculateAC, spendSpellSlot } from 'src/engine/character';
 import { ENEMIES } from 'src/data/enemies';
+import { SpellId, getSpell } from 'src/data/spellbook';
+import { resolveSpell } from 'src/engine/spells';
 
 interface CombatStoreState {
   state: CombatState | null;
@@ -28,6 +30,7 @@ interface CombatStoreState {
 
   startCombat: (character: CharacterStats, enemyIds: string[]) => void;
   playerAttack: (targetId: string) => void;
+  playerCastSpell: (spellId: SpellId, slotLevel: number, targetIds: string[]) => void;
   playerEndTurn: () => void;
   resolveEnemyTurn: () => void;
   setAnimating: (val: boolean) => void;
@@ -117,6 +120,70 @@ export const useCombatStore = create<CombatStoreState>()(
               );
             }
           }
+        }
+
+        const end = checkCombatEnd(s.state);
+        if (end !== 'in_progress') {
+          s.state.phase = end;
+        }
+      });
+    },
+
+    playerCastSpell: (spellId, slotLevel, targetIds) => {
+      const cs = get().state;
+      if (!cs || cs.phase !== 'in_progress') return;
+      const actor = currentActor(cs);
+      if (!actor || !actor.isPlayer || !actor.playerStats) return;
+
+      const spell = getSpell(spellId);
+
+      if (spell.castingTime === 'action' && actor.actionsUsed.includes('action')) return;
+      if (spell.castingTime === 'bonus_action' && actor.actionsUsed.includes('bonus_action')) return;
+
+      if (spell.level > 0) {
+        const slotData = actor.spellSlots?.[slotLevel];
+        if (!slotData || slotData.remaining <= 0) return;
+      }
+
+      const targets = targetIds
+        .map((id) => cs.participants.find((p) => p.id === id))
+        .filter((p): p is CombatParticipant => !!p);
+      if (targets.length === 0) return;
+
+      const result = resolveSpell(spell, actor, targets, slotLevel, cs);
+
+      set((s) => {
+        if (!s.state) return;
+
+        // Apply HP/condition updates from spell resolution
+        for (const update of result.participantUpdates) {
+          const idx = s.state.participants.findIndex((p) => p.id === update.id);
+          if (idx >= 0) {
+            s.state.participants[idx] = update.updated;
+          }
+        }
+
+        // Apply actor bookkeeping after participant updates (safe for self-targeting heals)
+        const actorIdx = s.state.participants.findIndex((p) => p.id === actor.id);
+        if (actorIdx >= 0) {
+          s.state.participants[actorIdx].actionsUsed.push(spell.castingTime);
+          if (result.slotSpent && s.state.participants[actorIdx].spellSlots) {
+            s.state.participants[actorIdx].spellSlots = spendSpellSlot(
+              s.state.participants[actorIdx].spellSlots!,
+              slotLevel,
+            );
+          }
+        }
+
+        // Append log entries
+        for (const entry of result.logEntries) {
+          appendLog(
+            s.state,
+            makeLogEntry(entry.round, entry.type, entry.actorName, entry.text, {
+              roll: entry.roll,
+              targetName: entry.targetName,
+            }),
+          );
         }
 
         const end = checkCombatEnd(s.state);

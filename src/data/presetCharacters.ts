@@ -26,10 +26,7 @@ const LEATHER: ArmorData = {
 function finalize(stats: Omit<CharacterStats, 'maxHP' | 'currentHP'>): CharacterStats {
   const conMod = getModifier(stats.abilityScores.constitution);
   const maxHP = calculateMaxHP(stats.classId, stats.level, conMod);
-  const draft: CharacterStats = { ...stats, maxHP, currentHP: maxHP };
-  // AC was a placeholder; recompute now using calculateAC on the full object
-  // but we never store derived AC on the character — combatStore reads it via calculateAC
-  return draft;
+  return { ...stats, maxHP, currentHP: maxHP };
 }
 
 export const PRESET_CHARACTERS: CharacterStats[] = [
@@ -104,6 +101,36 @@ export const PRESET_CHARACTERS: CharacterStats[] = [
     mainHand: WEAPONS.mace,
     classFeatures: ['channel_divinity'],
     portrait: 'human_cleric',
+    spellcastingAbility: 'wisdom',
+    spellSlots: { 1: { max: 4, remaining: 4 }, 2: { max: 2, remaining: 2 } },
+    knownSpells: ['sacred_flame', 'cure_wounds', 'healing_word', 'inflict_wounds', 'hold_person'],
+  }),
+  finalize({
+    id: 'zara',
+    name: 'Zara',
+    race: 'elf',
+    classId: 'wizard',
+    level: 3,
+    abilityScores: {
+      strength: 8,
+      dexterity: 14,
+      constitution: 12,
+      intelligence: 17,
+      wisdom: 12,
+      charisma: 10,
+    },
+    speed: 30,
+    proficientWeapons: ['simple'],
+    proficientSaves: ['intelligence', 'wisdom'],
+    savingThrowProficiencies: ['intelligence', 'wisdom'],
+    armor: null,
+    shield: false,
+    mainHand: WEAPONS.dagger,
+    classFeatures: [],
+    portrait: 'elf_wizard',
+    spellcastingAbility: 'intelligence',
+    spellSlots: { 1: { max: 4, remaining: 4 }, 2: { max: 2, remaining: 2 } },
+    knownSpells: ['fire_bolt', 'magic_missile', 'scorching_ray', 'hold_person'],
   }),
 ];
 

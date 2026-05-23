@@ -8,11 +8,13 @@ import {
 } from 'src/engine/dice';
 import {
   CharacterStats,
+  SpellSlotState,
   getAttackBonus,
   getWeaponDamageAbilityMod,
   getInitiativeBonus,
   getModifier,
 } from 'src/engine/character';
+import { SpellId } from 'src/data/spellbook';
 import { WeaponData } from 'src/data/weapons';
 import { EnemyStatBlock, EnemyAttack } from 'src/data/enemies';
 
@@ -43,6 +45,9 @@ export interface CombatParticipant {
   actionsUsed: ActionType[];
   playerStats?: CharacterStats;
   enemyStats?: EnemyStatBlock;
+  spellSlots?: SpellSlotState;
+  knownSpells?: SpellId[];
+  concentrating?: SpellId | null;
 }
 
 export type LogEntryType =
@@ -131,6 +136,9 @@ export function makePlayerParticipant(character: CharacterStats): CombatParticip
     conditions: [],
     actionsUsed: [],
     playerStats: character,
+    spellSlots: character.spellSlots ? { ...character.spellSlots } : undefined,
+    knownSpells: character.knownSpells ? [...character.knownSpells] : undefined,
+    concentrating: null,
   };
 }
 

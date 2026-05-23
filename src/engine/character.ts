@@ -1,4 +1,5 @@
 import { WeaponData, WeaponCategory } from 'src/data/weapons';
+import { SpellId } from 'src/data/spellbook';
 
 export type ClassId = 'fighter' | 'rogue' | 'cleric' | 'wizard';
 export type RaceId = 'human' | 'elf' | 'dwarf' | 'halfling' | 'half-orc';
@@ -49,6 +50,13 @@ export interface CharacterStats {
   mainHand: WeaponData;
   classFeatures: ClassFeatureId[];
   portrait?: string;
+  spellcastingAbility?: AbilityName;
+  spellSlots?: SpellSlotState;
+  knownSpells?: SpellId[];
+}
+
+export interface SpellSlotState {
+  [level: number]: { max: number; remaining: number };
 }
 
 export type ClassFeatureId =
@@ -148,4 +156,35 @@ export function getSavingThrowBonus(
 
 export function getInitiativeBonus(character: CharacterStats): number {
   return getModifier(character.abilityScores.dexterity);
+}
+
+export function getSpellcastingAbility(classId: ClassId): AbilityName {
+  if (classId === 'cleric') return 'wisdom';
+  if (classId === 'wizard') return 'intelligence';
+  throw new Error(`${classId} is not a spellcaster`);
+}
+
+export function isSpellcaster(classId: ClassId): boolean {
+  return classId === 'cleric' || classId === 'wizard';
+}
+
+export function getSpellSaveDC(character: CharacterStats): number {
+  const ability = getSpellcastingAbility(character.classId);
+  return 8 + getProficiencyBonus(character.level) + getModifier(character.abilityScores[ability]);
+}
+
+export function getSpellAttackBonus(character: CharacterStats): number {
+  const ability = getSpellcastingAbility(character.classId);
+  return getProficiencyBonus(character.level) + getModifier(character.abilityScores[ability]);
+}
+
+export function getSpellDamageAbilityMod(character: CharacterStats): number {
+  const ability = getSpellcastingAbility(character.classId);
+  return getModifier(character.abilityScores[ability]);
+}
+
+export function spendSpellSlot(slots: SpellSlotState, level: number): SpellSlotState {
+  const current = slots[level];
+  if (!current || current.remaining <= 0) throw new Error(`No level-${level} slots remaining`);
+  return { ...slots, [level]: { ...current, remaining: current.remaining - 1 } };
 }

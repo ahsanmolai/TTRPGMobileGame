@@ -6,8 +6,11 @@ interface ActionBarProps {
   isPlayerTurn: boolean;
   isAnimating: boolean;
   actionUsed: boolean;
+  bonusActionUsed: boolean;
   hasLiveEnemies: boolean;
+  hasSpells: boolean;
   onAttack: () => void;
+  onCastSpell: () => void;
   onEndTurn: () => void;
 }
 
@@ -15,12 +18,16 @@ export function ActionBar({
   isPlayerTurn,
   isAnimating,
   actionUsed,
+  bonusActionUsed,
   hasLiveEnemies,
+  hasSpells,
   onAttack,
+  onCastSpell,
   onEndTurn,
 }: ActionBarProps) {
   const disabled = !isPlayerTurn || isAnimating;
   const attackDisabled = disabled || actionUsed || !hasLiveEnemies;
+  const spellDisabled = disabled || (actionUsed && bonusActionUsed);
 
   return (
     <View style={styles.container}>
@@ -35,13 +42,23 @@ export function ActionBar({
         ]}
       >
         <Text style={styles.buttonText}>⚔ Attack</Text>
-        <View
-          style={[
-            styles.pip,
-            actionUsed ? styles.pipUsed : styles.pipAvailable,
-          ]}
-        />
+        <View style={[styles.pip, actionUsed ? styles.pipUsed : styles.pipAvailable]} />
       </Pressable>
+      {hasSpells && (
+        <Pressable
+          onPress={onCastSpell}
+          disabled={spellDisabled}
+          style={({ pressed }) => [
+            styles.button,
+            styles.spells,
+            spellDisabled && styles.disabled,
+            pressed && !spellDisabled && styles.pressed,
+          ]}
+        >
+          <Text style={styles.buttonText}>✨ Spells</Text>
+          <View style={[styles.pip, bonusActionUsed && actionUsed ? styles.pipUsed : styles.pipAvailable]} />
+        </Pressable>
+      )}
       <Pressable
         onPress={onEndTurn}
         disabled={disabled}
@@ -77,6 +94,10 @@ const styles = StyleSheet.create({
   },
   attack: {
     backgroundColor: colors.accent.crimson,
+    borderColor: colors.accent.gold,
+  },
+  spells: {
+    backgroundColor: colors.accent.sapphire,
     borderColor: colors.accent.gold,
   },
   endTurn: {

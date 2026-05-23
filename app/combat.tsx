@@ -16,8 +16,11 @@ import { CombatParticipant, currentActor as getCurrentActor } from 'src/engine/c
 import { CombatLog } from 'src/components/CombatLog';
 import { InitiativeTracker } from 'src/components/InitiativeTracker';
 import { ActionBar } from 'src/components/ActionBar';
+import { SpellMenu } from 'src/components/SpellMenu';
 import { HPBar } from 'src/components/HPBar';
 import { colors, typography, spacing } from 'src/theme/theme';
+import { SpellDefinition, SpellId, getSpell, SPELLS } from 'src/data/spellbook';
+import { SpellSlotState } from 'src/engine/character';
 
 const ENEMY_TURN_DELAY_MS = 1200;
 
@@ -27,11 +30,13 @@ export default function CombatScreen() {
   const state = useCombatStore((s) => s.state);
   const startCombat = useCombatStore((s) => s.startCombat);
   const playerAttack = useCombatStore((s) => s.playerAttack);
+  const playerCastSpell = useCombatStore((s) => s.playerCastSpell);
   const playerEndTurn = useCombatStore((s) => s.playerEndTurn);
   const resolveEnemyTurn = useCombatStore((s) => s.resolveEnemyTurn);
   const clearCombat = useCombatStore((s) => s.clearCombat);
   const isAnimating = useCombatStore((s) => s.isAnimating);
   const [showTargetPicker, setShowTargetPicker] = useState(false);
+  const [showSpellMenu, setShowSpellMenu] = useState(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -71,6 +76,11 @@ export default function CombatScreen() {
   const enemies = state.participants.filter((p) => !p.isPlayer);
   const liveEnemies = enemies.filter((e) => e.currentHP > 0);
   const actionUsed = actor?.actionsUsed.includes('action') ?? false;
+  const bonusActionUsed = actor?.actionsUsed.includes('bonus_action') ?? false;
+  const knownSpellIds = player?.knownSpells ?? [];
+  const knownSpells: SpellDefinition[] = knownSpellIds.map((id) => SPELLS[id]).filter(Boolean);
+  const hasSpells = knownSpells.length > 0;
+  const playerSpellSlots = player?.spellSlots ?? {};
 
   function handleAttackPressed() {
     if (liveEnemies.length === 1) {
@@ -83,6 +93,20 @@ export default function CombatScreen() {
   function handleTargetPicked(targetId: string) {
     setShowTargetPicker(false);
     playerAttack(targetId);
+  }
+
+  function handleSpellCast(spellId: SpellId, slotLevel: number) {
+    setShowSpellMenu(false);
+    const spell = getSpell(spellId);
+    if (spell.effect.kind === 'heal') {
+      if (player) {
+        playerCastSpell(spellId, slotLevel, [player.id]);
+      }
+    } else {
+      if (liveEnemies.length > 0) {
+        playerCastSpell(spellId, slotLevel, [liveEnemies[0].id]);
+      }
+    }
   }
 
   function leaveCombat() {
@@ -119,9 +143,22 @@ export default function CombatScreen() {
         isPlayerTurn={isPlayerTurn}
         isAnimating={isAnimating}
         actionUsed={actionUsed}
+        bonusActionUsed={bonusActionUsed}
         hasLiveEnemies={liveEnemies.length > 0}
+        hasSpells={hasSpells}
         onAttack={handleAttackPressed}
+        onCastSpell={() => setShowSpellMenu(true)}
         onEndTurn={playerEndTurn}
+      />
+
+      <SpellMenu
+        visible={showSpellMenu}
+        spells={knownSpells}
+        spellSlots={playerSpellSlots}
+        actionUsed={actionUsed}
+        bonusActionUsed={bonusActionUsed}
+        onCast={handleSpellCast}
+        onClose={() => setShowSpellMenu(false)}
       />
 
       <Modal visible={showTargetPicker} transparent animationType="fade">
