@@ -155,15 +155,20 @@ export const useCombatStore = create<CombatStoreState>()(
       set((s) => {
         if (!s.state) return;
 
-        // Apply HP/condition updates from spell resolution
+        // Patch only the fields resolveSpell modifies (currentHP, conditions).
+        // Wholesale replacement would assign a plain object with frozen arrays from
+        // the snapshot, causing "can't define array index past end of non-writable array"
+        // when we subsequently push to actionsUsed on the same participant.
         for (const update of result.participantUpdates) {
           const idx = s.state.participants.findIndex((p) => p.id === update.id);
           if (idx >= 0) {
-            s.state.participants[idx] = update.updated;
+            s.state.participants[idx].currentHP = update.updated.currentHP;
+            s.state.participants[idx].conditions = [...update.updated.conditions];
           }
         }
 
-        // Apply actor bookkeeping after participant updates (safe for self-targeting heals)
+        // Apply actor bookkeeping — participant is still an immer draft proxy here,
+        // so actionsUsed.push is safe even when the actor was the heal target.
         const actorIdx = s.state.participants.findIndex((p) => p.id === actor.id);
         if (actorIdx >= 0) {
           s.state.participants[actorIdx].actionsUsed.push(spell.castingTime);
