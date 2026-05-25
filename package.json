@@ -35,7 +35,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "generate:monsters": "node scripts/generate-monsters.mjs"
   },
   "private": true
 }

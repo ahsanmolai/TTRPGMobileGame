@@ -7,7 +7,12 @@ export type DamageType =
   | 'cold'
   | 'thunder'
   | 'necrotic'
-  | 'radiant';
+  | 'radiant'
+  | 'acid'
+  | 'lightning'
+  | 'poison'
+  | 'psychic'
+  | 'force';
 
 export type WeaponProperty =
   | 'finesse'
