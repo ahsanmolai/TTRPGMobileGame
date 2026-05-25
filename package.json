@@ -36,7 +36,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "generate:monsters": "node scripts/generate-monsters.mjs"
+    "generate:monsters": "node scripts/generate-monsters.mjs",
+    "generate:classes": "node scripts/generate-classes.mjs",
+    "generate:spells": "node scripts/generate-spells.mjs",
+    "generate:srd": "npm run generate:monsters && npm run generate:classes && npm run generate:spells"
   },
   "private": true
 }
