@@ -1,0 +1,20 @@
+{
+  "monsters": [
+    "bandit",
+    "bugbear",
+    "doppelganger",
+    "ettin",
+    "ghast",
+    "ghoul",
+    "goblin",
+    "hobgoblin",
+    "kobold",
+    "lizardfolk",
+    "ogre",
+    "orc",
+    "skeleton",
+    "specter",
+    "troll",
+    "zombie"
+  ]
+}

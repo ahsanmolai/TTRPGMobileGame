@@ -1,5 +1,6 @@
 import { AbilityScores, AbilityName } from 'src/engine/character';
 import { DamageType } from 'src/data/weapons';
+import { SRD_ENEMIES } from 'src/data/srdEnemies';
 
 export interface EnemyAttack {
   name: string;
@@ -25,157 +26,10 @@ export interface EnemyStatBlock {
   iconHint: string;
 }
 
+// SRD_ENEMIES is auto-generated from vitusventure/5thSRD via `npm run srd:sync`.
+// Add hand-crafted entries here to override or supplement SRD data.
 export const ENEMIES: Record<string, EnemyStatBlock> = {
-  goblin: {
-    id: 'goblin',
-    name: 'Goblin',
-    cr: 0.25,
-    ac: 15,
-    maxHP: 7,
-    speed: 30,
-    abilityScores: {
-      strength: 8,
-      dexterity: 14,
-      constitution: 10,
-      intelligence: 10,
-      wisdom: 8,
-      charisma: 8,
-    },
-    initiativeBonus: 2,
-    attacks: [
-      {
-        name: 'Scimitar',
-        attackBonus: 4,
-        damageDice: '1d6+2',
-        damageType: 'slashing',
-        range: 'melee',
-      },
-    ],
-    multiattackCount: 1,
-    xp: 50,
-    flavor: 'A small, sneaky humanoid with a cruel grin.',
-    iconHint: 'goblin',
-  },
-  skeleton: {
-    id: 'skeleton',
-    name: 'Skeleton',
-    cr: 0.25,
-    ac: 13,
-    maxHP: 13,
-    speed: 30,
-    abilityScores: {
-      strength: 10,
-      dexterity: 14,
-      constitution: 15,
-      intelligence: 6,
-      wisdom: 8,
-      charisma: 5,
-    },
-    initiativeBonus: 2,
-    attacks: [
-      {
-        name: 'Shortsword',
-        attackBonus: 4,
-        damageDice: '1d6+2',
-        damageType: 'piercing',
-        range: 'melee',
-      },
-    ],
-    multiattackCount: 1,
-    xp: 50,
-    flavor: 'Animated bones held together by dark magic.',
-    iconHint: 'skeleton',
-  },
-  orc: {
-    id: 'orc',
-    name: 'Orc',
-    cr: 0.5,
-    ac: 13,
-    maxHP: 15,
-    speed: 30,
-    abilityScores: {
-      strength: 16,
-      dexterity: 12,
-      constitution: 16,
-      intelligence: 7,
-      wisdom: 11,
-      charisma: 10,
-    },
-    initiativeBonus: 1,
-    attacks: [
-      {
-        name: 'Greataxe',
-        attackBonus: 5,
-        damageDice: '1d12+3',
-        damageType: 'slashing',
-        range: 'melee',
-      },
-    ],
-    multiattackCount: 1,
-    xp: 100,
-    flavor: 'A brutish warrior wielding a massive axe.',
-    iconHint: 'orc',
-  },
-  ghoul: {
-    id: 'ghoul',
-    name: 'Ghoul',
-    cr: 1,
-    ac: 12,
-    maxHP: 22,
-    speed: 30,
-    abilityScores: {
-      strength: 13,
-      dexterity: 15,
-      constitution: 10,
-      intelligence: 7,
-      wisdom: 10,
-      charisma: 6,
-    },
-    initiativeBonus: 2,
-    attacks: [
-      {
-        name: 'Claws',
-        attackBonus: 4,
-        damageDice: '2d4+2',
-        damageType: 'slashing',
-        range: 'melee',
-      },
-    ],
-    multiattackCount: 1,
-    xp: 200,
-    flavor: 'A pale, hungry undead with razor-sharp claws.',
-    iconHint: 'ghoul',
-  },
-  bugbear: {
-    id: 'bugbear',
-    name: 'Bugbear',
-    cr: 1,
-    ac: 16,
-    maxHP: 27,
-    speed: 30,
-    abilityScores: {
-      strength: 15,
-      dexterity: 14,
-      constitution: 13,
-      intelligence: 8,
-      wisdom: 11,
-      charisma: 9,
-    },
-    initiativeBonus: 2,
-    attacks: [
-      {
-        name: 'Morningstar',
-        attackBonus: 4,
-        damageDice: '2d8+2',
-        damageType: 'piercing',
-        range: 'melee',
-      },
-    ],
-    multiattackCount: 1,
-    xp: 200,
-    flavor: 'A massive goblinoid brute, terror of dark forests.',
-    iconHint: 'bugbear',
-  },
+  ...SRD_ENEMIES,
 };
 
 export function getEnemy(id: string): EnemyStatBlock {
@@ -191,16 +45,43 @@ export interface EncounterTemplate {
 }
 
 export const ENCOUNTERS: EncounterTemplate[] = [
+  // CR 1/8
+  { id: 'lone_bandit', enemyIds: ['bandit'], description: 'A lone bandit on the road' },
+  { id: 'lone_kobold', enemyIds: ['kobold'], description: 'A kobold scout' },
+  // CR 1/4
   { id: 'lone_goblin', enemyIds: ['goblin'], description: 'A lone goblin scout' },
   { id: 'two_goblins', enemyIds: ['goblin', 'goblin'], description: 'A pair of goblins' },
   { id: 'skeleton_patrol', enemyIds: ['skeleton'], description: 'A wandering skeleton' },
+  { id: 'lone_zombie', enemyIds: ['zombie'], description: 'A shambling zombie' },
+  // CR 1/2
   { id: 'orc_warband', enemyIds: ['orc'], description: 'A brutish orc warrior' },
+  { id: 'lone_hobgoblin', enemyIds: ['hobgoblin'], description: 'A disciplined hobgoblin soldier' },
+  { id: 'lizardfolk_guard', enemyIds: ['lizardfolk'], description: 'A lizardfolk warrior' },
+  // Mixed CR 1/4
   { id: 'goblin_skeleton', enemyIds: ['goblin', 'skeleton'], description: 'A goblin and its undead pet' },
+  { id: 'zombie_horde', enemyIds: ['zombie', 'zombie'], description: 'Two shambling zombies' },
+  // CR 1
   { id: 'lone_ghoul', enemyIds: ['ghoul'], description: 'A hungry ghoul' },
   { id: 'bugbear_lair', enemyIds: ['bugbear'], description: 'A bugbear in its lair' },
+  { id: 'lone_specter', enemyIds: ['specter'], description: 'A haunting specter' },
+  // CR 2
+  { id: 'ghast_crypt', enemyIds: ['ghast'], description: 'A ghast lurking in a crypt' },
+  { id: 'ogre_cave', enemyIds: ['ogre'], description: 'An ogre guarding its cave' },
+  // CR 3
+  { id: 'doppelganger_trap', enemyIds: ['doppelganger'], description: 'A doppelganger in disguise' },
+  // CR 4
+  { id: 'ettin_lair', enemyIds: ['ettin'], description: 'A two-headed ettin' },
+  // CR 5
+  { id: 'troll_bridge', enemyIds: ['troll'], description: 'A troll under the bridge' },
 ];
 
 export function randomEncounter(): EncounterTemplate {
   const idx = Math.floor(Math.random() * ENCOUNTERS.length);
   return ENCOUNTERS[idx];
+}
+
+export function encountersByCR(maxCR: number): EncounterTemplate[] {
+  return ENCOUNTERS.filter((enc) =>
+    enc.enemyIds.every((id) => (ENEMIES[id]?.cr ?? 99) <= maxCR)
+  );
 }
