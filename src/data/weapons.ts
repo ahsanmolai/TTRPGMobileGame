@@ -8,11 +8,11 @@ export type DamageType =
   | 'thunder'
   | 'necrotic'
   | 'radiant'
-  | 'poison'
   | 'acid'
   | 'lightning'
-  | 'force'
-  | 'psychic';
+  | 'poison'
+  | 'psychic'
+  | 'force';
 
 export type WeaponProperty =
   | 'finesse'

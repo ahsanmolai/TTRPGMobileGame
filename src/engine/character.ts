@@ -1,7 +1,8 @@
 import { WeaponData, WeaponCategory } from 'src/data/weapons';
 import { SpellId } from 'src/data/spellbook';
+import { ClassId, CLASSES } from 'src/data/classes';
+export type { ClassId };
 
-export type ClassId = 'fighter' | 'rogue' | 'cleric' | 'wizard';
 export type RaceId = 'human' | 'elf' | 'dwarf' | 'halfling' | 'half-orc';
 
 export type AbilityName =
@@ -81,24 +82,13 @@ export function getProficiencyBonus(level: number): number {
   return 6;
 }
 
-const HIT_DIE_BY_CLASS: Record<ClassId, number> = {
-  fighter: 10,
-  rogue: 8,
-  cleric: 8,
-  wizard: 6,
-};
-
-const AVERAGE_HIT_DIE: Record<ClassId, number> = {
-  fighter: 6, // (10/2 + 1)
-  rogue: 5,
-  cleric: 5,
-  wizard: 4,
-};
-
 export function calculateMaxHP(classId: ClassId, level: number, conModifier: number): number {
-  const firstLevel = HIT_DIE_BY_CLASS[classId] + conModifier;
+  const cls = CLASSES[classId];
+  const hitDie = cls?.hitDie ?? 8;
+  const avgPerLevel = cls?.averageHPPerLevel ?? 5;
+  const firstLevel = hitDie + conModifier;
   if (level <= 1) return Math.max(1, firstLevel);
-  const remaining = (level - 1) * (AVERAGE_HIT_DIE[classId] + conModifier);
+  const remaining = (level - 1) * (avgPerLevel + conModifier);
   return Math.max(1, firstLevel + remaining);
 }
 
@@ -159,13 +149,13 @@ export function getInitiativeBonus(character: CharacterStats): number {
 }
 
 export function getSpellcastingAbility(classId: ClassId): AbilityName {
-  if (classId === 'cleric') return 'wisdom';
-  if (classId === 'wizard') return 'intelligence';
-  throw new Error(`${classId} is not a spellcaster`);
+  const ability = CLASSES[classId]?.spellcastingAbility;
+  if (!ability) throw new Error(`${classId} is not a spellcaster`);
+  return ability as AbilityName;
 }
 
 export function isSpellcaster(classId: ClassId): boolean {
-  return classId === 'cleric' || classId === 'wizard';
+  return CLASSES[classId]?.spellcastingAbility != null;
 }
 
 export function getSpellSaveDC(character: CharacterStats): number {
