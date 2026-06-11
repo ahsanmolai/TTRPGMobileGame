@@ -1,17 +1,22 @@
 # TTRPG Combat — *Combat of the d20*
 
-A turn-by-turn dungeon brawler for iOS and Android, built with Expo and React Native. All combat rules, monsters, classes, and spells follow the D&D 5th Edition System Reference Document 5.1.
+A turn-by-turn roguelike dungeon crawler for iOS and Android, built with Expo and React Native. All combat rules, monsters, classes, and spells follow the D&D 5th Edition System Reference Document 5.1.
 
 ---
 
 ## Features
 
+- **20-floor campaign** — five fights per floor, the fifth a boss; beat the boss to gain a level, so you hit level 20 on the final floor. Defeat ends the run.
+- **Character creation** — any of the 5 races and 12 classes, standard-array ability scores, SRD racial bonuses, per-class starting equipment
+- **Full 1–20 leveling** — HP, proficiency, spell slots, auto-ASIs, Extra Attack, and new spells, all driven by the SRD progression tables
+- **SRD XP economy** — monsters award their real SRD XP; each floor's bar fills exactly on the boss kill
+- **Persistent runs** — character, floor, and XP survive app restarts (AsyncStorage)
 - **SRD-faithful combat engine** — initiative, attack rolls, saving throws, spell DCs, critical hits
-- **317 SRD monsters** spanning CR 0 to CR 30, parsed directly from the 5e SRD
+- **317 SRD monsters** spanning CR 0 to CR 30, split across floors by challenge rating
 - **12 player classes** with full 20-level progression tables, spell slot data, and class features
 - **319 SRD spells** indexed by class, level, and school
 - **Structured spellcasting rules** — preparation styles, concentration, ritual casting, slot recovery
-- **4 preset characters** — Fighter, Rogue, Cleric, Wizard (level 3, combat-ready)
+- **4 preset level-1 heroes** — Fighter, Rogue, Cleric, Wizard quick-starts
 - **Spell resolution** — cantrips, levelled spells, upcast bonuses, condition effects
 
 ---
@@ -60,7 +65,7 @@ npm run web      # runs in browser
 npm test
 ```
 
-All 85 tests cover the combat engine, character calculations, dice rolling, and spell resolution.
+The suite (187 tests) covers the combat engine, character calculations, dice rolling, spell resolution, character creation/leveling, floor generation, and the campaign XP invariant.
 
 ---
 
@@ -70,8 +75,11 @@ All 85 tests cover the combat engine, character calculations, dice rolling, and 
 TTRPGMobileGame/
 ├── app/                    # Expo Router screens
 │   ├── _layout.tsx         # Root navigation layout
-│   ├── index.tsx           # Main menu
-│   ├── pick-character.tsx  # Character selection
+│   ├── index.tsx           # Main menu (continue / new campaign)
+│   ├── pick-character.tsx  # Preset selection + "Forge Your Own"
+│   ├── create-character.tsx # Custom hero builder (race, class, standard array)
+│   ├── campaign.tsx        # Floor hub: fight nodes, XP bar, victory/defeat states
+│   ├── level-up.tsx        # Post-boss level-up summary
 │   └── combat.tsx          # Combat screen
 ├── src/
 │   ├── components/         # Reusable UI components
@@ -83,18 +91,25 @@ TTRPGMobileGame/
 │   ├── data/               # Static game data (most files generated from SRD)
 │   │   ├── classes.ts      # 12 classes × 20 levels — progression tables, spell slots
 │   │   ├── enemies.ts      # 317 SRD monsters indexed by id
-│   │   ├── presetCharacters.ts
+│   │   ├── floors.ts       # CR bands per floor + encounter generation
+│   │   ├── races.ts        # SRD racial bonuses, speed, features
+│   │   ├── armor.ts        # Armor definitions
+│   │   ├── startingEquipment.ts  # Per-class starting loadout
+│   │   ├── presetCharacters.ts   # Level-1 quick-start builds
 │   │   ├── spellbook.ts    # 8 fully-implemented spell effects
 │   │   ├── spellcastingRules.ts  # Preparation style, slot recovery, ritual rules
 │   │   ├── spellMetadata.ts      # 319 spell entries + class spell lists
 │   │   └── weapons.ts
 │   ├── engine/             # Pure, side-effect-free game logic
 │   │   ├── character.ts    # HP, AC, attack bonus, spell DC, saving throws
-│   │   ├── combat.ts       # Initiative, attack resolution, enemy AI
+│   │   ├── leveling.ts     # buildCharacter, applyLevelUp, rests, known spells
+│   │   ├── campaign.ts     # Run state transitions + the floor XP invariant
+│   │   ├── combat.ts       # Initiative, attack resolution, Extra Attack, enemy AI
 │   │   ├── dice.ts         # Dice rolling (1d4 → 1d20, advantage/disadvantage)
 │   │   └── spells.ts       # Spell effect resolution
-│   ├── store/              # Zustand state
+│   ├── store/              # Zustand state (character & campaign persisted)
 │   │   ├── characterStore.ts
+│   │   ├── campaignStore.ts
 │   │   └── combatStore.ts
 │   └── theme/
 │       └── theme.ts
@@ -103,9 +118,13 @@ TTRPGMobileGame/
 │   ├── generate-classes.mjs   # → src/data/classes.ts
 │   └── generate-spells.mjs    # → src/data/spellMetadata.ts
 └── __tests__/
+    ├── campaign.test.ts
+    ├── campaignStore.test.ts
     ├── character.test.ts
     ├── combat.test.ts
     ├── dice.test.ts
+    ├── floors.test.ts
+    ├── leveling.test.ts
     └── spells.test.ts
 ```
 

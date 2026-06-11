@@ -12,9 +12,18 @@ import {
 } from 'src/engine/campaign';
 import { FloorEncounter } from 'src/data/floors';
 import { useCharacterStore } from 'src/store/characterStore';
+import { CharacterStats } from 'src/engine/character';
+
+export interface LevelUpSummary {
+  before: CharacterStats;
+  after: CharacterStats;
+  newFloor: number;
+}
 
 interface CampaignState {
   run: CampaignRun | null;
+  /** Snapshot of the latest boss level-up, for the level-up screen. Not persisted. */
+  lastLevelUp: LevelUpSummary | null;
   _hasHydrated: boolean;
   setHasHydrated: (val: boolean) => void;
   startRun: () => void;
@@ -33,6 +42,7 @@ export const useCampaignStore = create<CampaignState>()(
   persist(
     immer((set, get) => ({
       run: null,
+      lastLevelUp: null,
       _hasHydrated: false,
       setHasHydrated: (val) =>
         set((state) => {
@@ -41,6 +51,7 @@ export const useCampaignStore = create<CampaignState>()(
       startRun: () =>
         set((state) => {
           state.run = createRun();
+          state.lastLevelUp = null;
         }),
       getCurrentEncounter: () => {
         const run = get().run;
@@ -56,8 +67,15 @@ export const useCampaignStore = create<CampaignState>()(
         });
         const characterStore = useCharacterStore.getState();
         if (result.leveledUp) {
+          const before = characterStore.character;
           characterStore.levelUp();
           characterStore.longRest();
+          const after = useCharacterStore.getState().character;
+          if (before && after) {
+            set((state) => {
+              state.lastLevelUp = { before, after, newFloor: result.run.floor };
+            });
+          }
         } else if (result.campaignComplete) {
           characterStore.longRest();
         } else {
@@ -73,6 +91,7 @@ export const useCampaignStore = create<CampaignState>()(
       abandonRun: () =>
         set((state) => {
           state.run = null;
+          state.lastLevelUp = null;
         }),
     })),
     {

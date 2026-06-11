@@ -74,6 +74,29 @@ describe('campaignStore', () => {
     expect(useCampaignStore.getState().run).toBeNull();
   });
 
+  it('a full 20-floor campaign: level 20 on the last floor, then complete', () => {
+    useCharacterStore.getState().setCharacter(freshDwarfFighter());
+    useCampaignStore.getState().startRun();
+
+    for (let floor = 1; floor <= 20; floor++) {
+      const run = useCampaignStore.getState().run!;
+      const character = useCharacterStore.getState().character!;
+      expect(run.floor).toBe(floor);
+      expect(character.level).toBe(floor); // level always equals the floor
+      for (let fight = 0; fight < FIGHTS_PER_FLOOR; fight++) {
+        expect(useCampaignStore.getState().recordFightVictory()).not.toBeNull();
+      }
+    }
+
+    expect(useCampaignStore.getState().run!.status).toBe('complete');
+    const finalCharacter = useCharacterStore.getState().character!;
+    expect(finalCharacter.level).toBe(20);
+    expect(finalCharacter.attacksPerAction).toBe(4); // fighter capstone
+    expect(finalCharacter.currentHP).toBe(finalCharacter.maxHP);
+    // no level 21: there is nothing past the final floor
+    expect(useCampaignStore.getState().recordFightVictory()).toBeNull();
+  });
+
   it('persists the run to AsyncStorage and rehydrates it', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     useCharacterStore.getState().setCharacter(freshDwarfFighter());

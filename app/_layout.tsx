@@ -21,8 +21,14 @@ export default function RootLayout() {
           >
             <Stack.Screen name="index" />
             <Stack.Screen name="pick-character" />
+            <Stack.Screen name="create-character" />
+            <Stack.Screen name="campaign" />
             <Stack.Screen
               name="combat"
+              options={{ animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="level-up"
               options={{ animation: 'slide_from_bottom' }}
             />
           </Stack>
