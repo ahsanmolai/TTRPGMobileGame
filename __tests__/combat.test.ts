@@ -276,6 +276,7 @@ describe('combat.makePlayerParticipant + makeEnemyParticipant', () => {
       shield: false,
       mainHand: WEAPONS.shortsword,
       classFeatures: ['sneak_attack'],
+      attacksPerAction: 1,
     };
     const p = makePlayerParticipant(char);
     expect(p.isPlayer).toBe(true);

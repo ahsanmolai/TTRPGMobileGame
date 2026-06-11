@@ -34,6 +34,7 @@ function makeCharacter(overrides: Partial<CharacterStats> = {}): CharacterStats 
     shield: false,
     mainHand: WEAPONS.longsword,
     classFeatures: [],
+    attacksPerAction: 1,
   };
   return { ...base, ...overrides };
 }

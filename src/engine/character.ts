@@ -50,6 +50,8 @@ export interface CharacterStats {
   shield: boolean;
   mainHand: WeaponData;
   classFeatures: ClassFeatureId[];
+  /** Weapon attacks allowed per action (Extra Attack). */
+  attacksPerAction: number;
   portrait?: string;
   spellcastingAbility?: AbilityName;
   spellSlots?: SpellSlotState;
