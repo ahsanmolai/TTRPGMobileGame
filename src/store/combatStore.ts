@@ -91,10 +91,15 @@ export const useCombatStore = create<CombatStoreState>()(
       set((s) => {
         if (!s.state) return;
         const round = s.state.round;
-        // mark action used
+        // count the attack; the action is spent once all Extra Attacks are used
         const actorIdx = s.state.participants.findIndex((p) => p.id === actor.id);
         if (actorIdx >= 0) {
-          s.state.participants[actorIdx].actionsUsed.push('action');
+          const draft = s.state.participants[actorIdx];
+          const attacksPerAction = draft.playerStats?.attacksPerAction ?? 1;
+          draft.attacksUsedThisTurn = (draft.attacksUsedThisTurn ?? 0) + 1;
+          if (draft.attacksUsedThisTurn >= attacksPerAction) {
+            draft.actionsUsed.push('action');
+          }
         }
 
         appendLog(
@@ -137,7 +142,8 @@ export const useCombatStore = create<CombatStoreState>()(
 
       const spell = getSpell(spellId);
 
-      if (spell.castingTime === 'action' && actor.actionsUsed.includes('action')) return;
+      // an action spell needs the whole action — attacking first forfeits it
+      if (spell.castingTime === 'action' && (actor.actionsUsed.includes('action') || (actor.attacksUsedThisTurn ?? 0) > 0)) return;
       if (spell.castingTime === 'bonus_action' && actor.actionsUsed.includes('bonus_action')) return;
 
       if (spell.level > 0) {

@@ -43,6 +43,8 @@ export interface CombatParticipant {
   dexterity: number;
   conditions: Condition[];
   actionsUsed: ActionType[];
+  /** Weapon attacks made this turn — the action is spent when this reaches attacksPerAction. */
+  attacksUsedThisTurn?: number;
   playerStats?: CharacterStats;
   enemyStats?: EnemyStatBlock;
   spellSlots?: SpellSlotState;
@@ -135,6 +137,7 @@ export function makePlayerParticipant(character: CharacterStats): CombatParticip
     dexterity: character.abilityScores.dexterity,
     conditions: [],
     actionsUsed: [],
+    attacksUsedThisTurn: 0,
     playerStats: character,
     spellSlots: character.spellSlots ? { ...character.spellSlots } : undefined,
     knownSpells: character.knownSpells ? [...character.knownSpells] : undefined,
@@ -369,7 +372,7 @@ export function advanceTurn(state: CombatState): CombatState {
   // reset actionsUsed for the actor whose turn just began
   const newActorId = state.initiativeOrder[nextIndex];
   const newParticipants = state.participants.map((p) =>
-    p.id === newActorId ? { ...p, actionsUsed: [] as ActionType[] } : p,
+    p.id === newActorId ? { ...p, actionsUsed: [] as ActionType[], attacksUsedThisTurn: 0 } : p,
   );
   return {
     ...state,

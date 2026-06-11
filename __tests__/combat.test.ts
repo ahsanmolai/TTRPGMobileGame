@@ -292,3 +292,97 @@ describe('combat.makePlayerParticipant + makeEnemyParticipant', () => {
     expect(p.id).toBe('goblin_1');
   });
 });
+
+describe('combat.extra attack', () => {
+  function makeFighter(attacksPerAction: number): CharacterStats {
+    return {
+      id: 'player',
+      name: 'Fighter',
+      race: 'human',
+      classId: 'fighter',
+      level: 5,
+      abilityScores: {
+        strength: 16,
+        dexterity: 12,
+        constitution: 14,
+        intelligence: 10,
+        wisdom: 10,
+        charisma: 10,
+      },
+      maxHP: 44,
+      currentHP: 44,
+      speed: 30,
+      proficientWeapons: ['simple', 'martial'],
+      proficientSaves: ['strength', 'constitution'],
+      savingThrowProficiencies: ['strength', 'constitution'],
+      armor: null,
+      shield: false,
+      mainHand: WEAPONS.longsword,
+      classFeatures: [],
+      attacksPerAction,
+    };
+  }
+
+  function seedCombat(attacksPerAction: number) {
+    const { useCombatStore } = require('src/store/combatStore');
+    const player = makePlayerParticipant(makeFighter(attacksPerAction));
+    player.ac = 15;
+    // huge HP so the fight never ends mid-test
+    const enemy = makeEnemyParticipant({ ...ENEMIES.goblin, maxHP: 10000 }, '1');
+    useCombatStore.setState({
+      state: {
+        participants: [player, enemy],
+        initiativeOrder: [player.id, enemy.id],
+        currentTurnIndex: 0,
+        round: 1,
+        log: [],
+        phase: 'in_progress' as const,
+      },
+      isAnimating: false,
+      pendingAttack: null,
+    });
+    return useCombatStore;
+  }
+
+  it('with attacksPerAction 2, the action is spent on the second attack', () => {
+    const store = seedCombat(2);
+    store.getState().playerAttack('goblin_1');
+    let p = store.getState().state!.participants[0];
+    expect(p.attacksUsedThisTurn).toBe(1);
+    expect(p.actionsUsed).not.toContain('action');
+
+    store.getState().playerAttack('goblin_1');
+    p = store.getState().state!.participants[0];
+    expect(p.attacksUsedThisTurn).toBe(2);
+    expect(p.actionsUsed).toContain('action');
+
+    // a third attack is refused
+    store.getState().playerAttack('goblin_1');
+    p = store.getState().state!.participants[0];
+    expect(p.attacksUsedThisTurn).toBe(2);
+  });
+
+  it('with attacksPerAction 1, a single attack spends the action', () => {
+    const store = seedCombat(1);
+    store.getState().playerAttack('goblin_1');
+    const p = store.getState().state!.participants[0];
+    expect(p.actionsUsed).toContain('action');
+  });
+
+  it('advanceTurn resets the attack counter', () => {
+    const player = makePlayerParticipant(makeFighter(2));
+    const enemy = makeEnemyParticipant(ENEMIES.goblin, '1');
+    const state: CombatState = {
+      participants: [{ ...player, attacksUsedThisTurn: 2, actionsUsed: ['action'] }, enemy],
+      initiativeOrder: [player.id, enemy.id],
+      currentTurnIndex: 1, // enemy's turn; advancing wraps back to the player
+      round: 1,
+      log: [],
+      phase: 'in_progress',
+    };
+    const next = advanceTurn(state);
+    const refreshed = next.participants.find((p) => p.id === player.id)!;
+    expect(refreshed.attacksUsedThisTurn).toBe(0);
+    expect(refreshed.actionsUsed).toEqual([]);
+  });
+});
