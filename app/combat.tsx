@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCharacterStore } from 'src/store/characterStore';
 import { useCombatStore } from 'src/store/combatStore';
-import { randomEncounter } from 'src/data/enemies';
+import { useCampaignStore } from 'src/store/campaignStore';
 import { CombatParticipant, currentActor as getCurrentActor } from 'src/engine/combat';
 import { CombatLog } from 'src/components/CombatLog';
 import { InitiativeTracker } from 'src/components/InitiativeTracker';
@@ -35,6 +35,12 @@ export default function CombatScreen() {
   const resolveEnemyTurn = useCombatStore((s) => s.resolveEnemyTurn);
   const clearCombat = useCombatStore((s) => s.clearCombat);
   const isAnimating = useCombatStore((s) => s.isAnimating);
+  const syncFromCombat = useCharacterStore((s) => s.syncFromCombat);
+  const recordFightVictory = useCampaignStore((s) => s.recordFightVictory);
+  const recordDefeat = useCampaignStore((s) => s.recordDefeat);
+  const currentEncounter = useCampaignStore((s) =>
+    s.run && s.run.status === 'active' ? s.run.floorEncounters[s.run.fightIndex] : null,
+  );
   const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [showSpellMenu, setShowSpellMenu] = useState(false);
   const startedRef = useRef(false);
@@ -46,7 +52,11 @@ export default function CombatScreen() {
     }
     if (!startedRef.current) {
       startedRef.current = true;
-      const encounter = randomEncounter();
+      const encounter = useCampaignStore.getState().getCurrentEncounter();
+      if (!encounter) {
+        router.replace('/');
+        return;
+      }
       startCombat(character, encounter.enemyIds);
     }
   }, [character, startCombat, router]);
@@ -109,9 +119,26 @@ export default function CombatScreen() {
     }
   }
 
-  function leaveCombat() {
+  function handleVictoryConfirm() {
+    if (player) {
+      syncFromCombat(player.currentHP, player.spellSlots);
+    }
+    const result = recordFightVictory();
     clearCombat();
-    router.replace('/');
+    if (!result) {
+      router.replace('/');
+    } else if (result.leveledUp) {
+      router.replace('/level-up');
+    } else {
+      // trash win or campaign complete — the campaign screen shows both
+      router.replace('/campaign');
+    }
+  }
+
+  function handleDefeatConfirm() {
+    recordDefeat();
+    clearCombat();
+    router.replace('/campaign');
   }
 
   return (
@@ -200,14 +227,20 @@ export default function CombatScreen() {
             </Text>
             <Text style={styles.endText}>
               {state.phase === 'victory'
-                ? 'The dungeon is silent. For now.'
-                : 'Your tale ends here. May your bones rest well.'}
+                ? `The dungeon is silent. For now.${currentEncounter ? `\n+${currentEncounter.xp.toLocaleString()} XP` : ''}`
+                : 'Your run ends here. The tower keeps its dead.'}
             </Text>
             <Pressable
               style={({ pressed }) => [styles.confirmBtn, pressed && styles.pressed]}
-              onPress={leaveCombat}
+              onPress={state.phase === 'victory' ? handleVictoryConfirm : handleDefeatConfirm}
             >
-              <Text style={styles.confirmText}>Return to Menu</Text>
+              <Text style={styles.confirmText}>
+                {state.phase === 'victory'
+                  ? currentEncounter?.isBoss
+                    ? 'Claim Your Level'
+                    : 'Press On'
+                  : 'Accept Your Fate'}
+              </Text>
             </Pressable>
           </View>
         </View>

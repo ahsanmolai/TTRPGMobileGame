@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRESET_CHARACTERS, presetAC } from 'src/data/presetCharacters';
 import { useCharacterStore } from 'src/store/characterStore';
+import { useCampaignStore } from 'src/store/campaignStore';
 import { getModifier } from 'src/engine/character';
 import { colors, typography, spacing } from 'src/theme/theme';
 import { CharacterStats } from 'src/engine/character';
@@ -12,33 +13,48 @@ const FLAVORS: Record<string, string> = {
   thorin: 'A stout Dwarf Fighter with axe, shield, and the unbreakable resolve of the mountain.',
   lyra: 'A nimble Halfling Rogue who strikes from the shadows with deadly precision.',
   aldwin: 'A Human Cleric of the Dawn, blessed by light and steeled by faith.',
+  zara: 'An Elf Wizard whose mind is a library of fire and force.',
 };
 
 const ICONS: Record<string, string> = {
   thorin: '🛡️',
   lyra: '🗡️',
   aldwin: '⚜️',
+  zara: '🔮',
 };
 
 export default function PickCharacter() {
   const router = useRouter();
   const select = useCharacterStore((s) => s.selectCharacter);
+  const startRun = useCampaignStore((s) => s.startRun);
   const [pickedId, setPickedId] = useState<string | null>(PRESET_CHARACTERS[0].id);
 
   function confirm() {
     if (!pickedId) return;
     select(pickedId);
-    router.push('/combat');
+    startRun();
+    router.push('/campaign');
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Choose Your Hero</Text>
-        <Text style={styles.subtitle}>Each is forged for a different style of war.</Text>
+        <Text style={styles.subtitle}>Twenty floors await. All heroes begin at level 1.</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.cardList}>
+        <Pressable
+          style={({ pressed }) => [styles.forgeCard, pressed && styles.pressed]}
+          onPress={() => router.push('/create-character')}
+        >
+          <Text style={styles.cardIcon}>⚒️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardName}>Forge Your Own</Text>
+            <Text style={styles.cardClass}>Any race, any class — build a custom hero</Text>
+          </View>
+        </Pressable>
+
         {PRESET_CHARACTERS.map((c) => (
           <CharacterCard
             key={c.id}
@@ -58,7 +74,7 @@ export default function PickCharacter() {
         onPress={confirm}
         disabled={!pickedId}
       >
-        <Text style={styles.confirmText}>Enter the Fray</Text>
+        <Text style={styles.confirmText}>Begin the Descent</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -172,6 +188,17 @@ const styles = StyleSheet.create({
   },
   cardPicked: {
     borderColor: colors.accent.gold,
+  },
+  forgeCard: {
+    backgroundColor: colors.background.secondary,
+    borderRadius: 10,
+    padding: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.accent.goldDim,
+    borderStyle: 'dashed',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   cardHead: {
     flexDirection: 'row',

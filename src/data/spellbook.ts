@@ -52,7 +52,7 @@ export const SPELLS: Record<SpellId, SpellDefinition> = {
     castingTime: 'action',
     concentration: false,
     effect: { kind: 'damage_attack', damageDice: '2d10', damageType: 'fire', attackRange: 'ranged' },
-    availableTo: ['wizard'],
+    availableTo: ['sorcerer', 'wizard'],
     description: 'Ranged spell attack — 2d10 fire damage',
   },
   cure_wounds: {
@@ -62,7 +62,7 @@ export const SPELLS: Record<SpellId, SpellDefinition> = {
     castingTime: 'action',
     concentration: false,
     effect: { kind: 'heal', healDice: '1d8' },
-    availableTo: ['cleric'],
+    availableTo: ['bard', 'cleric', 'druid', 'paladin', 'ranger'],
     description: 'Restore 1d8 + WIS modifier HP (touch)',
   },
   healing_word: {
@@ -72,7 +72,7 @@ export const SPELLS: Record<SpellId, SpellDefinition> = {
     castingTime: 'bonus_action',
     concentration: false,
     effect: { kind: 'heal', healDice: '1d4' },
-    availableTo: ['cleric'],
+    availableTo: ['bard', 'cleric', 'druid'],
     description: 'Bonus action — restore 1d4 + WIS modifier HP',
   },
   inflict_wounds: {
@@ -92,7 +92,7 @@ export const SPELLS: Record<SpellId, SpellDefinition> = {
     castingTime: 'action',
     concentration: false,
     effect: { kind: 'auto_hit_multi', hits: 3, damageDice: '1d4', damageType: 'piercing' },
-    availableTo: ['wizard'],
+    availableTo: ['sorcerer', 'wizard'],
     description: 'Auto-hit — 3 darts, each 1d4+1 force damage',
   },
   hold_person: {
@@ -102,7 +102,7 @@ export const SPELLS: Record<SpellId, SpellDefinition> = {
     castingTime: 'action',
     concentration: true,
     effect: { kind: 'condition', condition: 'paralyzed', saveAbility: 'wisdom', concentration: true },
-    availableTo: ['cleric', 'wizard'],
+    availableTo: ['bard', 'cleric', 'druid', 'sorcerer', 'warlock', 'wizard'],
     description: 'WIS save or paralyzed — concentration',
   },
   scorching_ray: {
@@ -112,7 +112,7 @@ export const SPELLS: Record<SpellId, SpellDefinition> = {
     castingTime: 'action',
     concentration: false,
     effect: { kind: 'multi_attack', hits: 3, damageDice: '2d6', damageType: 'fire' },
-    availableTo: ['wizard'],
+    availableTo: ['sorcerer', 'wizard'],
     description: '3 ranged spell attacks — 2d6 fire each',
   },
 };
