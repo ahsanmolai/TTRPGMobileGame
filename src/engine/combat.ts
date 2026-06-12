@@ -5,6 +5,7 @@ import {
   rollDamage,
   RollResult,
   rollWithModifier,
+  parseDamageNotation,
 } from 'src/engine/dice';
 import {
   CharacterStats,
@@ -405,7 +406,16 @@ export function describeAttack(
   return `${attacker.name} attacks ${target.name} with ${weaponOrAttack}: ${result.attackTotal} vs AC ${result.targetAC} — Hit for ${result.damage} damage.`;
 }
 
-// Simple enemy AI: pick first available attack, target the player.
+// Simple enemy AI: pick the highest-average-damage attack, target the player.
+export function averageAttackDamage(attack: EnemyAttack): number {
+  try {
+    const { count, sides, bonus } = parseDamageNotation(attack.damageDice);
+    return (count * (sides + 1)) / 2 + bonus;
+  } catch {
+    return 0;
+  }
+}
+
 export function chooseEnemyAction(
   enemy: CombatParticipant,
   state: CombatState,
@@ -413,9 +423,8 @@ export function chooseEnemyAction(
   if (!enemy.enemyStats) return null;
   const player = state.participants.find((p) => p.isPlayer && p.currentHP > 0);
   if (!player) return null;
-  // pick the highest expected-damage attack
   const attacks = enemy.enemyStats.attacks;
   if (attacks.length === 0) return null;
-  // simple: first attack (could be expanded later)
-  return { attack: attacks[0], targetId: player.id };
+  const best = attacks.reduce((a, b) => (averageAttackDamage(b) > averageAttackDamage(a) ? b : a));
+  return { attack: best, targetId: player.id };
 }

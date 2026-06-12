@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import { SpellDefinition, SpellId } from 'src/data/spellbook';
 import { SpellSlotState } from 'src/engine/character';
@@ -23,7 +23,10 @@ export function SpellMenu({
   onCast,
   onClose,
 }: SpellMenuProps) {
-  const groups = [0, 1, 2]
+  // Spell whose upcast slot-picker row is expanded.
+  const [expandedId, setExpandedId] = useState<SpellId | null>(null);
+
+  const groups = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     .map((level) => ({ level, spells: spells.filter((s) => s.level === level) }))
     .filter((g) => g.spells.length > 0);
 
@@ -34,10 +37,33 @@ export function SpellMenu({
     return false;
   }
 
+  function availableSlotLevels(spell: SpellDefinition): number[] {
+    const levels: number[] = [];
+    for (let lvl = spell.level; lvl <= 9; lvl++) {
+      if ((spellSlots[lvl]?.remaining ?? 0) > 0) levels.push(lvl);
+    }
+    return levels;
+  }
+
+  function castAt(spell: SpellDefinition, slotLevel: number) {
+    setExpandedId(null);
+    onCast(spell.id, slotLevel);
+  }
+
   function handleCast(spell: SpellDefinition) {
     if (isDisabled(spell)) return;
-    const slotLevel = spell.level === 0 ? 0 : findLowestAvailableSlot(spell.level, spellSlots)!;
-    onCast(spell.id, slotLevel);
+    if (spell.level === 0) {
+      castAt(spell, 0);
+      return;
+    }
+    const levels = availableSlotLevels(spell);
+    // spells that benefit from upcasting expand a slot picker; others cast
+    // immediately from the lowest available slot
+    if (spell.upcast && levels.length > 1) {
+      setExpandedId(expandedId === spell.id ? null : spell.id);
+      return;
+    }
+    castAt(spell, levels[0]);
   }
 
   return (
@@ -57,8 +83,8 @@ export function SpellMenu({
                 {g.spells.map((spell) => {
                   const disabled = isDisabled(spell);
                   return (
+                    <View key={spell.id}>
                     <Pressable
-                      key={spell.id}
                       onPress={() => handleCast(spell)}
                       disabled={disabled}
                       style={({ pressed }) => [
@@ -100,6 +126,24 @@ export function SpellMenu({
                         <SlotPips level={spell.level} slots={spellSlots} />
                       )}
                     </Pressable>
+                    {expandedId === spell.id && (
+                      <View style={styles.slotPicker}>
+                        <Text style={styles.slotPickerLabel}>Cast with slot:</Text>
+                        {availableSlotLevels(spell).map((lvl) => (
+                          <Pressable
+                            key={lvl}
+                            style={({ pressed }) => [styles.slotChip, pressed && styles.rowPressed]}
+                            onPress={() => castAt(spell, lvl)}
+                          >
+                            <Text style={styles.slotChipText}>
+                              L{lvl}{lvl > spell.level ? ' ↑' : ''}
+                            </Text>
+                            <Text style={styles.slotChipCount}>×{spellSlots[lvl]?.remaining ?? 0}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    </View>
                   );
                 })}
               </View>
@@ -287,5 +331,43 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     fontSize: typography.fontSize.base,
     fontWeight: '600',
+  },
+  slotPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.sm,
+    marginTop: -2,
+    marginBottom: spacing.xs,
+    backgroundColor: colors.background.secondary,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    paddingTop: spacing.xs,
+  },
+  slotPickerLabel: {
+    color: colors.text.secondary,
+    fontSize: typography.fontSize.xs,
+  },
+  slotChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.accent.gold,
+    backgroundColor: colors.background.elevated,
+  },
+  slotChipText: {
+    color: colors.accent.gold,
+    fontSize: typography.fontSize.sm,
+    fontWeight: '700',
+  },
+  slotChipCount: {
+    color: colors.text.secondary,
+    fontSize: typography.fontSize.xs,
   },
 });

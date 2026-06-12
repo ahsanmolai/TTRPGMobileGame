@@ -12,6 +12,8 @@ import {
   checkCombatEnd,
   makePlayerParticipant,
   makeEnemyParticipant,
+  chooseEnemyAction,
+  averageAttackDamage,
 } from 'src/engine/combat';
 import { CharacterStats } from 'src/engine/character';
 import { WEAPONS } from 'src/data/weapons';
@@ -290,6 +292,103 @@ describe('combat.makePlayerParticipant + makeEnemyParticipant', () => {
     expect(p.ac).toBe(15);
     expect(p.maxHP).toBe(7);
     expect(p.id).toBe('goblin_1');
+  });
+});
+
+describe('combat.chooseEnemyAction', () => {
+  it('picks the attack with the highest average damage', () => {
+    const enemy = makeEnemy({
+      enemyStats: {
+        ...ENEMIES.goblin,
+        attacks: [
+          { name: 'Weak Jab', attackBonus: 4, damageDice: '1d4', damageType: 'bludgeoning', range: 'melee' },
+          { name: 'Heavy Slam', attackBonus: 4, damageDice: '3d10+5', damageType: 'bludgeoning', range: 'melee' },
+          { name: 'Bite', attackBonus: 4, damageDice: '2d6+2', damageType: 'piercing', range: 'melee' },
+        ],
+      },
+    });
+    const state: CombatState = {
+      participants: [makePlayer(), enemy],
+      initiativeOrder: ['goblin', 'player'],
+      currentTurnIndex: 0,
+      round: 1,
+      log: [],
+      phase: 'in_progress',
+    };
+    const choice = chooseEnemyAction(enemy, state)!;
+    expect(choice.attack.name).toBe('Heavy Slam');
+    expect(choice.targetId).toBe('player');
+  });
+
+  it('averageAttackDamage computes NdS+B expectation', () => {
+    expect(averageAttackDamage({ name: 'x', attackBonus: 0, damageDice: '2d6+2', damageType: 'slashing', range: 'melee' })).toBe(9);
+    expect(averageAttackDamage({ name: 'x', attackBonus: 0, damageDice: '1d4', damageType: 'slashing', range: 'melee' })).toBe(2.5);
+  });
+});
+
+describe('combat.enemy multiattack', () => {
+  function seedEnemyTurn(multiattackCount: number, playerHP = 10000) {
+    const { useCombatStore } = require('src/store/combatStore');
+    const player = makePlayer({ currentHP: playerHP, maxHP: playerHP });
+    const enemy = makeEnemy({
+      id: 'wolf_1',
+      currentHP: 10000,
+      maxHP: 10000,
+      enemyStats: { ...ENEMIES.goblin, multiattackCount },
+    });
+    useCombatStore.setState({
+      state: {
+        participants: [player, enemy],
+        initiativeOrder: ['wolf_1', 'player'],
+        currentTurnIndex: 0,
+        round: 1,
+        log: [],
+        phase: 'in_progress' as const,
+      },
+      isAnimating: false,
+      pendingAttack: null,
+    });
+    return useCombatStore;
+  }
+
+  const ATTACK_TYPES = ['attack_hit', 'attack_miss', 'critical_hit', 'critical_fail'];
+
+  it('makes multiattackCount attacks in a single turn', () => {
+    const store = seedEnemyTurn(3);
+    store.getState().resolveEnemyTurn();
+    const log = store.getState().state!.log;
+    const attackEntries = log.filter((e: { type: string }) => ATTACK_TYPES.includes(e.type));
+    expect(attackEntries).toHaveLength(3);
+  });
+
+  it('makes one attack when multiattackCount is 1', () => {
+    const store = seedEnemyTurn(1);
+    store.getState().resolveEnemyTurn();
+    const log = store.getState().state!.log;
+    expect(log.filter((e: { type: string }) => ATTACK_TYPES.includes(e.type))).toHaveLength(1);
+  });
+
+  it('stops attacking once the player falls', () => {
+    // 1 HP player, 4 attacks that always hit hard enough to kill (unless nat 1):
+    // after the death log there must never be another attack entry.
+    for (let trial = 0; trial < 20; trial++) {
+      const store = seedEnemyTurn(4, 1);
+      const state = store.getState().state!;
+      const enemy = state.participants.find((p: { id: string }) => p.id === 'wolf_1')!;
+      enemy.enemyStats = {
+        ...enemy.enemyStats!,
+        attacks: [{ name: 'Doom', attackBonus: 100, damageDice: '10d10+100', damageType: 'bludgeoning', range: 'melee' as const }],
+      };
+      store.setState({ state: { ...state } });
+      store.getState().resolveEnemyTurn();
+      const log = store.getState().state!.log;
+      const deathIdx = log.findIndex((e: { type: string }) => e.type === 'death');
+      if (deathIdx >= 0) {
+        const after = log.slice(deathIdx + 1);
+        expect(after.filter((e: { type: string }) => ATTACK_TYPES.includes(e.type))).toHaveLength(0);
+        expect(store.getState().state!.phase).toBe('defeat');
+      }
+    }
   });
 });
 

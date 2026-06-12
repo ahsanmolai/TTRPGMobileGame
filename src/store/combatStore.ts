@@ -244,23 +244,28 @@ export const useCombatStore = create<CombatStoreState>()(
         return;
       }
 
-      const target = cs.participants.find((p) => p.id === choice.targetId);
-      if (!target) return;
+      const attackCount = Math.max(1, actor.enemyStats?.multiattackCount ?? 1);
 
-      const result = resolveEnemyAttack(actor, target, choice.attack);
       set((s) => {
         if (!s.state) return;
         const round = s.state.round;
-        appendLog(
-          s.state,
-          makeLogEntry(round, result.hit ? (result.critical ? 'critical_hit' : 'attack_hit') : (result.criticalFail ? 'critical_fail' : 'attack_miss'), actor.name, describeAttack(actor, target, choice.attack.name, result), {
-            roll: result.attackRoll,
-            targetName: target.name,
-          }),
-        );
-        if (result.hit && result.damage) {
-          const tIdx = s.state.participants.findIndex((p) => p.id === target.id);
-          if (tIdx >= 0) {
+        const tIdx = s.state.participants.findIndex((p) => p.id === choice.targetId);
+        if (tIdx < 0) return;
+
+        // Multiattack: resolve each attack against the target's live state,
+        // stopping as soon as the target drops.
+        for (let i = 0; i < attackCount; i++) {
+          const target = s.state.participants[tIdx];
+          if (target.currentHP <= 0) break;
+          const result = resolveEnemyAttack(actor, target, choice.attack);
+          appendLog(
+            s.state,
+            makeLogEntry(round, result.hit ? (result.critical ? 'critical_hit' : 'attack_hit') : (result.criticalFail ? 'critical_fail' : 'attack_miss'), actor.name, describeAttack(actor, target, choice.attack.name, result), {
+              roll: result.attackRoll,
+              targetName: target.name,
+            }),
+          );
+          if (result.hit && result.damage) {
             s.state.participants[tIdx] = applyDamage(s.state.participants[tIdx], result.damage);
             appendLog(
               s.state,

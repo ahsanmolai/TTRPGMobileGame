@@ -43,6 +43,8 @@ export default function CombatScreen() {
   );
   const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [showSpellMenu, setShowSpellMenu] = useState(false);
+  // when set, the target picker resolves this spell instead of a weapon attack
+  const [pendingSpell, setPendingSpell] = useState<{ spellId: SpellId; slotLevel: number } | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -96,26 +98,39 @@ export default function CombatScreen() {
     if (liveEnemies.length === 1) {
       playerAttack(liveEnemies[0].id);
     } else if (liveEnemies.length > 1) {
+      setPendingSpell(null);
       setShowTargetPicker(true);
     }
   }
 
   function handleTargetPicked(targetId: string) {
     setShowTargetPicker(false);
-    playerAttack(targetId);
+    if (pendingSpell) {
+      playerCastSpell(pendingSpell.spellId, pendingSpell.slotLevel, [targetId]);
+      setPendingSpell(null);
+    } else {
+      playerAttack(targetId);
+    }
   }
 
   function handleSpellCast(spellId: SpellId, slotLevel: number) {
     setShowSpellMenu(false);
     const spell = getSpell(spellId);
-    if (spell.effect.kind === 'heal') {
-      if (player) {
-        playerCastSpell(spellId, slotLevel, [player.id]);
-      }
+    const targeting = spell.targeting ?? (spell.effect.kind === 'heal' ? 'self' : 'single');
+    if (targeting === 'self') {
+      if (player) playerCastSpell(spellId, slotLevel, [player.id]);
+      return;
+    }
+    if (liveEnemies.length === 0) return;
+    if (targeting === 'all_enemies') {
+      playerCastSpell(spellId, slotLevel, liveEnemies.map((e) => e.id));
+      return;
+    }
+    if (liveEnemies.length === 1) {
+      playerCastSpell(spellId, slotLevel, [liveEnemies[0].id]);
     } else {
-      if (liveEnemies.length > 0) {
-        playerCastSpell(spellId, slotLevel, [liveEnemies[0].id]);
-      }
+      setPendingSpell({ spellId, slotLevel });
+      setShowTargetPicker(true);
     }
   }
 
@@ -206,7 +221,10 @@ export default function CombatScreen() {
             ))}
             <Pressable
               style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
-              onPress={() => setShowTargetPicker(false)}
+              onPress={() => {
+                setShowTargetPicker(false);
+                setPendingSpell(null);
+              }}
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
