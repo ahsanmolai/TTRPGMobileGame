@@ -4321,7 +4321,7 @@ export const ENEMIES: Record<string, EnemyStatBlock> = {
     },
     initiativeBonus: 2,
     attacks: [
-      { name: "Bite", attackBonus: 1, damageDice: "1d4–1", damageType: 'piercing', range: 'melee' },
+      { name: "Bite", attackBonus: 1, damageDice: "1d4-1", damageType: 'piercing', range: 'melee' },
     ],
     multiattackCount: 1,
     xp: 10,

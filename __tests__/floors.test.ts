@@ -5,6 +5,7 @@ import {
   encounterXP,
   getFloorDef,
   monstersInBand,
+  pairFightPool,
 } from 'src/data/floors';
 import { ENEMIES } from 'src/data/enemies';
 
@@ -16,14 +17,12 @@ describe('floors.FLOOR_TABLE', () => {
 
   // Guards against monster-data regeneration silently emptying a band.
   it.each(FLOOR_TABLE.map((def) => [def.floor, def] as const))(
-    'floor %i has non-empty trash, easy-trash, and boss pools',
-    (_floor, def) => {
+    'floor %i has non-empty trash, pair-fight, and boss pools',
+    (floor, def) => {
       const trash = monstersInBand(def.trashCR[0], def.trashCR[1]);
       const boss = monstersInBand(def.bossCR[0], def.bossCR[1]);
-      const midpoint = (def.trashCR[0] + def.trashCR[1]) / 2;
-      const easy = trash.filter((e) => e.cr <= midpoint);
       expect(trash.length).toBeGreaterThan(0);
-      expect(easy.length).toBeGreaterThan(0);
+      expect(pairFightPool(floor).length).toBeGreaterThan(0);
       expect(boss.length).toBeGreaterThan(0);
     },
   );
@@ -51,7 +50,12 @@ describe('floors.buildFloorEncounters', () => {
         expect(enc.xp).toBe(encounterXP(enc.enemyIds));
         for (const id of enc.enemyIds) {
           const cr = ENEMIES[id].cr;
-          const [min, max] = isBoss ? def.bossCR : def.trashCR;
+          // pair fights (i < 2) draw from below the trash band
+          const [min, max] = isBoss
+            ? def.bossCR
+            : i < 2
+              ? [Math.max(0, def.trashCR[0] - 2), def.trashCR[1]]
+              : def.trashCR;
           expect(cr).toBeGreaterThanOrEqual(min);
           expect(cr).toBeLessThanOrEqual(max);
         }
@@ -63,6 +67,17 @@ describe('floors.buildFloorEncounters', () => {
     for (const def of FLOOR_TABLE) {
       for (const enc of buildFloorEncounters(def.floor)) {
         expect(enc.xp).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe('monster data integrity', () => {
+  it('every attack damage notation parses (guards SRD regeneration)', () => {
+    const { parseDamageNotation } = require('src/engine/dice');
+    for (const enemy of Object.values(ENEMIES)) {
+      for (const attack of enemy.attacks) {
+        expect(() => parseDamageNotation(attack.damageDice)).not.toThrow();
       }
     }
   });

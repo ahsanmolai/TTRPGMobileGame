@@ -12,16 +12,26 @@ import {
   applyDamage,
   advanceTurn,
   checkCombatEnd,
+  checkConditionModifiers,
+  resolveAttack,
   currentActor,
   describeAttack,
   makeLogEntry,
   chooseEnemyAction,
   CombatLogEntry,
 } from 'src/engine/combat';
-import { CharacterStats, calculateAC, spendSpellSlot } from 'src/engine/character';
+import { CharacterStats, calculateAC, getModifier, getProficiencyBonus, spendSpellSlot } from 'src/engine/character';
 import { ENEMIES } from 'src/data/enemies';
 import { SpellId, getSpell } from 'src/data/spellbook';
 import { resolveSpell } from 'src/engine/spells';
+import { rollDamage } from 'src/engine/dice';
+import {
+  getClassAbility,
+  getMartialArtsDice,
+  getRageDamageBonus,
+  getSmiteDice,
+  getSneakAttackDice,
+} from 'src/engine/classAbilities';
 
 interface CombatStoreState {
   state: CombatState | null;
@@ -31,6 +41,7 @@ interface CombatStoreState {
   startCombat: (character: CharacterStats, enemyIds: string[]) => void;
   playerAttack: (targetId: string) => void;
   playerCastSpell: (spellId: SpellId, slotLevel: number, targetIds: string[]) => void;
+  playerUseAbility: (targetId?: string) => void;
   playerEndTurn: () => void;
   resolveEnemyTurn: () => void;
   setAnimating: (val: boolean) => void;
@@ -85,8 +96,45 @@ export const useCombatStore = create<CombatStoreState>()(
       if (!target || target.currentHP <= 0) return;
       if (actor.actionsUsed.includes('action')) return;
       if (!actor.playerStats) return;
-      const weapon = actor.playerStats.mainHand;
-      const result = resolvePlayerAttack(actor, target, weapon);
+      const character = actor.playerStats;
+      const weapon = character.mainHand;
+      const isMelee = !weapon.properties.includes('ranged');
+
+      // Rage: flat melee damage rider while raging
+      const rageBonus = actor.raging && isMelee ? getRageDamageBonus(character.level) : 0;
+      const result = resolvePlayerAttack(actor, target, weapon, {
+        forceAdvantage: actor.aimAdvantage,
+        bonusDamage: rageBonus,
+      });
+
+      // Sneak Attack: once per turn, on a hit made with advantage
+      let sneakDamage = 0;
+      let sneakDice = '';
+      if (result.hit && character.classFeatures.includes('sneak_attack') && !actor.sneakAttackUsedThisTurn) {
+        const mods = checkConditionModifiers(actor, target, isMelee ? 'melee' : 'ranged');
+        const hadAdvantage = (mods.advantage || !!actor.aimAdvantage) && !mods.disadvantage;
+        if (hadAdvantage) {
+          sneakDice = getSneakAttackDice(character.level);
+          sneakDamage = rollDamage(sneakDice, 0, result.critical).total;
+        }
+      }
+
+      // Divine Smite: armed melee hit spends the lowest available slot
+      let smiteDamage = 0;
+      let smiteSlot = 0;
+      if (result.hit && actor.smiteArmed && isMelee && actor.spellSlots) {
+        for (let lvl = 1; lvl <= 9; lvl++) {
+          if ((actor.spellSlots[lvl]?.remaining ?? 0) > 0) {
+            smiteSlot = lvl;
+            break;
+          }
+        }
+        if (smiteSlot > 0) {
+          smiteDamage = rollDamage(getSmiteDice(smiteSlot), 0, result.critical).total;
+        }
+      }
+
+      const totalDamage = (result.damage ?? 0) + sneakDamage + smiteDamage;
 
       set((s) => {
         if (!s.state) return;
@@ -100,6 +148,13 @@ export const useCombatStore = create<CombatStoreState>()(
           if (draft.attacksUsedThisTurn >= attacksPerAction) {
             draft.actionsUsed.push('action');
           }
+          // Aim is spent by the attack, whatever the outcome
+          draft.aimAdvantage = false;
+          if (sneakDamage > 0) draft.sneakAttackUsedThisTurn = true;
+          if (smiteDamage > 0 && smiteSlot > 0 && draft.spellSlots) {
+            draft.spellSlots = spendSpellSlot(draft.spellSlots, smiteSlot);
+            draft.smiteArmed = false;
+          }
         }
 
         appendLog(
@@ -109,14 +164,26 @@ export const useCombatStore = create<CombatStoreState>()(
             targetName: target.name,
           }),
         );
+        if (sneakDamage > 0) {
+          appendLog(
+            s.state,
+            makeLogEntry(round, 'attack_hit', actor.name, `Sneak Attack! +${sneakDamage} damage (${sneakDice}).`),
+          );
+        }
+        if (smiteDamage > 0) {
+          appendLog(
+            s.state,
+            makeLogEntry(round, 'attack_hit', actor.name, `Divine Smite! +${smiteDamage} radiant damage (level-${smiteSlot} slot).`),
+          );
+        }
 
-        if (result.hit && result.damage) {
+        if (result.hit && totalDamage > 0) {
           const tIdx = s.state.participants.findIndex((p) => p.id === target.id);
           if (tIdx >= 0) {
-            s.state.participants[tIdx] = applyDamage(s.state.participants[tIdx], result.damage);
+            s.state.participants[tIdx] = applyDamage(s.state.participants[tIdx], totalDamage);
             appendLog(
               s.state,
-              makeLogEntry(round, 'damage', actor.name, `${target.name} takes ${result.damage} damage. (${s.state.participants[tIdx].currentHP}/${s.state.participants[tIdx].maxHP} HP)`),
+              makeLogEntry(round, 'damage', actor.name, `${target.name} takes ${totalDamage} damage. (${s.state.participants[tIdx].currentHP}/${s.state.participants[tIdx].maxHP} HP)`),
             );
             if (s.state.participants[tIdx].currentHP <= 0) {
               appendLog(
@@ -204,6 +271,122 @@ export const useCombatStore = create<CombatStoreState>()(
       });
     },
 
+    playerUseAbility: (targetId) => {
+      const cs = get().state;
+      if (!cs || cs.phase !== 'in_progress') return;
+      const actor = currentActor(cs);
+      if (!actor || !actor.isPlayer || !actor.playerStats) return;
+      const character = actor.playerStats;
+      const ability = getClassAbility(character.classId, character.level);
+      if (!ability) return;
+      if (ability.kind === 'bonus_action' && actor.actionsUsed.includes('bonus_action')) return;
+      if (ability.kind !== 'toggle' && actor.abilityUsesRemaining !== undefined && actor.abilityUsesRemaining <= 0) return;
+
+      set((s) => {
+        if (!s.state) return;
+        const round = s.state.round;
+        const actorIdx = s.state.participants.findIndex((p) => p.id === actor.id);
+        if (actorIdx < 0) return;
+        const draft = s.state.participants[actorIdx];
+
+        switch (ability.id) {
+          case 'rage': {
+            if (draft.raging) return;
+            draft.raging = true;
+            if (draft.abilityUsesRemaining !== undefined) draft.abilityUsesRemaining -= 1;
+            draft.actionsUsed.push('bonus_action');
+            appendLog(
+              s.state,
+              makeLogEntry(round, 'condition_applied', actor.name, `${actor.name} flies into a RAGE! (+${getRageDamageBonus(character.level)} melee damage, weapon damage halved)`),
+            );
+            break;
+          }
+          case 'second_wind': {
+            const heal = rollDamage('1d10', character.level, false).total;
+            draft.currentHP = Math.min(draft.maxHP, draft.currentHP + heal);
+            if (draft.abilityUsesRemaining !== undefined) draft.abilityUsesRemaining -= 1;
+            draft.actionsUsed.push('bonus_action');
+            appendLog(
+              s.state,
+              makeLogEntry(round, 'heal', actor.name, `${actor.name} catches a Second Wind — heals ${heal} HP. (${draft.currentHP}/${draft.maxHP} HP)`),
+            );
+            break;
+          }
+          case 'aim': {
+            draft.aimAdvantage = true;
+            draft.actionsUsed.push('bonus_action');
+            appendLog(
+              s.state,
+              makeLogEntry(round, 'system', actor.name, `${actor.name} takes careful aim — the next attack has advantage.`),
+            );
+            break;
+          }
+          case 'divine_smite': {
+            draft.smiteArmed = !draft.smiteArmed;
+            appendLog(
+              s.state,
+              makeLogEntry(round, 'system', actor.name,
+                draft.smiteArmed
+                  ? `${actor.name} channels divine power — the next melee hit will smite.`
+                  : `${actor.name} lowers the divine power.`),
+            );
+            break;
+          }
+          case 'flurry_of_blows': {
+            const target = s.state.participants.find(
+              (p) => (targetId ? p.id === targetId : !p.isPlayer && p.currentHP > 0),
+            );
+            if (!target || target.currentHP <= 0) return;
+            if (draft.abilityUsesRemaining !== undefined) draft.abilityUsesRemaining -= 1;
+            draft.actionsUsed.push('bonus_action');
+            appendLog(
+              s.state,
+              makeLogEntry(round, 'system', actor.name, `${actor.name} unleashes a Flurry of Blows! (1 ki)`),
+            );
+            const dexMod = getModifier(character.abilityScores.dexterity);
+            const attackBonus = getProficiencyBonus(character.level) + dexMod;
+            const dice = getMartialArtsDice(character.level);
+            const tIdx = s.state.participants.findIndex((p) => p.id === target.id);
+            for (let strike = 0; strike < 2; strike++) {
+              const liveTarget = s.state.participants[tIdx];
+              if (liveTarget.currentHP <= 0) break;
+              const atk = resolveAttack({
+                attacker: actor,
+                target: liveTarget,
+                attackBonus,
+                damageDice: dice,
+                damageBonus: dexMod,
+                range: 'melee',
+              });
+              appendLog(
+                s.state,
+                makeLogEntry(round, atk.hit ? (atk.critical ? 'critical_hit' : 'attack_hit') : (atk.criticalFail ? 'critical_fail' : 'attack_miss'), actor.name, describeAttack(actor, liveTarget, 'a flurry strike', atk), {
+                  roll: atk.attackRoll,
+                  targetName: liveTarget.name,
+                }),
+              );
+              if (atk.hit && atk.damage) {
+                s.state.participants[tIdx] = applyDamage(s.state.participants[tIdx], atk.damage);
+                appendLog(
+                  s.state,
+                  makeLogEntry(round, 'damage', actor.name, `${liveTarget.name} takes ${atk.damage} damage. (${s.state.participants[tIdx].currentHP}/${s.state.participants[tIdx].maxHP} HP)`),
+                );
+                if (s.state.participants[tIdx].currentHP <= 0) {
+                  appendLog(s.state, makeLogEntry(round, 'death', liveTarget.name, `${liveTarget.name} falls!`));
+                }
+              }
+            }
+            break;
+          }
+        }
+
+        const end = checkCombatEnd(s.state);
+        if (end !== 'in_progress') {
+          s.state.phase = end;
+        }
+      });
+    },
+
     playerEndTurn: () => {
       const cs = get().state;
       if (!cs || cs.phase !== 'in_progress') return;
@@ -266,10 +449,13 @@ export const useCombatStore = create<CombatStoreState>()(
             }),
           );
           if (result.hit && result.damage) {
-            s.state.participants[tIdx] = applyDamage(s.state.participants[tIdx], result.damage);
+            // Rage: the raging barbarian shrugs off half of all weapon damage
+            const raging = !!s.state.participants[tIdx].raging;
+            const damage = raging ? Math.max(1, Math.floor(result.damage / 2)) : result.damage;
+            s.state.participants[tIdx] = applyDamage(s.state.participants[tIdx], damage);
             appendLog(
               s.state,
-              makeLogEntry(round, 'damage', actor.name, `${target.name} takes ${result.damage} damage. (${s.state.participants[tIdx].currentHP}/${s.state.participants[tIdx].maxHP} HP)`),
+              makeLogEntry(round, 'damage', actor.name, `${target.name} takes ${damage} damage${raging ? ' (rage halves it)' : ''}. (${s.state.participants[tIdx].currentHP}/${s.state.participants[tIdx].maxHP} HP)`),
             );
             if (s.state.participants[tIdx].currentHP <= 0) {
               appendLog(

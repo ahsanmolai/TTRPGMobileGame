@@ -18,6 +18,7 @@ import {
 import { SpellId } from 'src/data/spellbook';
 import { WeaponData } from 'src/data/weapons';
 import { EnemyStatBlock, EnemyAttack } from 'src/data/enemies';
+import { getClassAbility } from 'src/engine/classAbilities';
 
 export type Condition =
   | 'poisoned'
@@ -46,6 +47,14 @@ export interface CombatParticipant {
   actionsUsed: ActionType[];
   /** Weapon attacks made this turn — the action is spent when this reaches attacksPerAction. */
   attacksUsedThisTurn?: number;
+  /** Class-ability state (players only). */
+  raging?: boolean;
+  abilityUsesRemaining?: number;
+  /** Rogue Aim: the next attack this turn rolls with advantage. */
+  aimAdvantage?: boolean;
+  sneakAttackUsedThisTurn?: boolean;
+  /** Paladin: next melee hit spends a slot for smite damage. */
+  smiteArmed?: boolean;
   playerStats?: CharacterStats;
   enemyStats?: EnemyStatBlock;
   spellSlots?: SpellSlotState;
@@ -126,6 +135,7 @@ export function makeLogEntry(
 }
 
 export function makePlayerParticipant(character: CharacterStats): CombatParticipant {
+  const ability = getClassAbility(character.classId, character.level);
   return {
     id: character.id,
     name: character.name,
@@ -139,6 +149,11 @@ export function makePlayerParticipant(character: CharacterStats): CombatParticip
     conditions: [],
     actionsUsed: [],
     attacksUsedThisTurn: 0,
+    raging: false,
+    abilityUsesRemaining: ability ? (Number.isFinite(ability.usesPerFight) ? ability.usesPerFight : undefined) : 0,
+    aimAdvantage: false,
+    sneakAttackUsedThisTurn: false,
+    smiteArmed: false,
     playerStats: character,
     spellSlots: character.spellSlots ? { ...character.spellSlots } : undefined,
     knownSpells: character.knownSpells ? [...character.knownSpells] : undefined,
@@ -262,12 +277,12 @@ export function resolvePlayerAttack(
   attacker: CombatParticipant,
   target: CombatParticipant,
   weapon: WeaponData,
-  options: { forceAdvantage?: boolean; forceDisadvantage?: boolean } = {},
+  options: { forceAdvantage?: boolean; forceDisadvantage?: boolean; bonusDamage?: number } = {},
 ): AttackResult {
   if (!attacker.playerStats) throw new Error('Attacker is not a player');
   const character = attacker.playerStats;
   const attackBonus = getAttackBonus(character, weapon);
-  const damageBonus = getWeaponDamageAbilityMod(character, weapon);
+  const damageBonus = getWeaponDamageAbilityMod(character, weapon) + (options.bonusDamage ?? 0);
   const isRanged = weapon.properties.includes('ranged');
   return resolveAttack({
     attacker,
@@ -276,7 +291,8 @@ export function resolvePlayerAttack(
     damageDice: weapon.damageDice,
     damageBonus,
     range: isRanged ? 'ranged' : 'melee',
-    ...options,
+    forceAdvantage: options.forceAdvantage,
+    forceDisadvantage: options.forceDisadvantage,
   });
 }
 
@@ -373,7 +389,15 @@ export function advanceTurn(state: CombatState): CombatState {
   // reset actionsUsed for the actor whose turn just began
   const newActorId = state.initiativeOrder[nextIndex];
   const newParticipants = state.participants.map((p) =>
-    p.id === newActorId ? { ...p, actionsUsed: [] as ActionType[], attacksUsedThisTurn: 0 } : p,
+    p.id === newActorId
+      ? {
+          ...p,
+          actionsUsed: [] as ActionType[],
+          attacksUsedThisTurn: 0,
+          aimAdvantage: false,
+          sneakAttackUsedThisTurn: false,
+        }
+      : p,
   );
   return {
     ...state,

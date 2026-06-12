@@ -15,7 +15,8 @@ import { useCampaignStore } from 'src/store/campaignStore';
 import { CombatParticipant, currentActor as getCurrentActor } from 'src/engine/combat';
 import { CombatLog } from 'src/components/CombatLog';
 import { InitiativeTracker } from 'src/components/InitiativeTracker';
-import { ActionBar } from 'src/components/ActionBar';
+import { ActionBar, AbilityButtonState } from 'src/components/ActionBar';
+import { getClassAbility } from 'src/engine/classAbilities';
 import { SpellMenu } from 'src/components/SpellMenu';
 import { HPBar } from 'src/components/HPBar';
 import { colors, typography, spacing } from 'src/theme/theme';
@@ -31,6 +32,7 @@ export default function CombatScreen() {
   const startCombat = useCombatStore((s) => s.startCombat);
   const playerAttack = useCombatStore((s) => s.playerAttack);
   const playerCastSpell = useCombatStore((s) => s.playerCastSpell);
+  const playerUseAbility = useCombatStore((s) => s.playerUseAbility);
   const playerEndTurn = useCombatStore((s) => s.playerEndTurn);
   const resolveEnemyTurn = useCombatStore((s) => s.resolveEnemyTurn);
   const clearCombat = useCombatStore((s) => s.clearCombat);
@@ -45,6 +47,8 @@ export default function CombatScreen() {
   const [showSpellMenu, setShowSpellMenu] = useState(false);
   // when set, the target picker resolves this spell instead of a weapon attack
   const [pendingSpell, setPendingSpell] = useState<{ spellId: SpellId; slotLevel: number } | null>(null);
+  // when true, the target picker resolves a Flurry of Blows
+  const [pendingFlurry, setPendingFlurry] = useState(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -94,18 +98,47 @@ export default function CombatScreen() {
   const hasSpells = knownSpells.length > 0;
   const playerSpellSlots = player?.spellSlots ?? {};
 
+  const classAbility = character ? getClassAbility(character.classId, character.level) : null;
+  const abilityState: AbilityButtonState | null = classAbility && player
+    ? {
+        name: classAbility.name,
+        active: !!player.raging || !!player.smiteArmed || !!player.aimAdvantage,
+        usesLeft: player.abilityUsesRemaining,
+        disabled:
+          (classAbility.kind === 'bonus_action' && bonusActionUsed) ||
+          (player.abilityUsesRemaining !== undefined && player.abilityUsesRemaining <= 0) ||
+          (classAbility.id === 'flurry_of_blows' && liveEnemies.length === 0) ||
+          (classAbility.id === 'rage' && !!player.raging) ||
+          (classAbility.id === 'aim' && !!player.aimAdvantage),
+      }
+    : null;
+
+  function handleUseAbility() {
+    if (!classAbility) return;
+    if (classAbility.id === 'flurry_of_blows' && liveEnemies.length > 1) {
+      setPendingFlurry(true);
+      setShowTargetPicker(true);
+      return;
+    }
+    playerUseAbility(liveEnemies[0]?.id);
+  }
+
   function handleAttackPressed() {
     if (liveEnemies.length === 1) {
       playerAttack(liveEnemies[0].id);
     } else if (liveEnemies.length > 1) {
       setPendingSpell(null);
+      setPendingFlurry(false);
       setShowTargetPicker(true);
     }
   }
 
   function handleTargetPicked(targetId: string) {
     setShowTargetPicker(false);
-    if (pendingSpell) {
+    if (pendingFlurry) {
+      playerUseAbility(targetId);
+      setPendingFlurry(false);
+    } else if (pendingSpell) {
       playerCastSpell(pendingSpell.spellId, pendingSpell.slotLevel, [targetId]);
       setPendingSpell(null);
     } else {
@@ -188,8 +221,10 @@ export default function CombatScreen() {
         bonusActionUsed={bonusActionUsed}
         hasLiveEnemies={liveEnemies.length > 0}
         hasSpells={hasSpells}
+        ability={abilityState}
         onAttack={handleAttackPressed}
         onCastSpell={() => setShowSpellMenu(true)}
+        onUseAbility={handleUseAbility}
         onEndTurn={playerEndTurn}
       />
 
@@ -224,6 +259,7 @@ export default function CombatScreen() {
               onPress={() => {
                 setShowTargetPicker(false);
                 setPendingSpell(null);
+                setPendingFlurry(false);
               }}
             >
               <Text style={styles.cancelText}>Cancel</Text>

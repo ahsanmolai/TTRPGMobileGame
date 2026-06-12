@@ -75,7 +75,8 @@ export interface ParsedDamage {
 }
 
 export function parseDamageNotation(notation: string): ParsedDamage {
-  const match = DAMAGE_REGEX.exec(notation);
+  // normalize unicode dashes (−, –, —) that slip in from SRD source markdown
+  const match = DAMAGE_REGEX.exec(notation.replace(/[−–—]/g, '-'));
   if (!match) {
     throw new Error(`Invalid damage notation: "${notation}"`);
   }
