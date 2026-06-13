@@ -11,7 +11,7 @@ import {
   recordVictory,
 } from 'src/engine/campaign';
 import { FloorEncounter } from 'src/data/floors';
-import { buildShopStock } from 'src/data/items';
+import { buildShopStock, getItem } from 'src/data/items';
 import { useCharacterStore } from 'src/store/characterStore';
 import { CharacterStats } from 'src/engine/character';
 
@@ -37,6 +37,8 @@ interface CampaignState {
   recordFightVictory: () => VictoryResult | null;
   recordDefeat: () => void;
   abandonRun: () => void;
+  /** Purchase one item from the current floor's shop stock. No-op if out of stock, unaffordable, or no active run. */
+  buyFromShop: (itemId: string) => void;
 }
 
 export const useCampaignStore = create<CampaignState>()(
@@ -99,6 +101,25 @@ export const useCampaignStore = create<CampaignState>()(
           state.run = null;
           state.lastLevelUp = null;
         }),
+      buyFromShop: (itemId) => {
+        const run = get().run;
+        if (!run || run.status !== 'active') return;
+        const stockEntry = run.shopStock.find((e) => e.itemId === itemId);
+        if (!stockEntry || stockEntry.qty <= 0) return;
+        const item = getItem(itemId);
+        const character = useCharacterStore.getState().character;
+        if (!character || character.gold < item.price) return;
+        // Deduct gold and add item to character atomically.
+        useCharacterStore.getState().gainGold(-item.price);
+        useCharacterStore.getState().gainItem(itemId, 1);
+        // Decrement shop stock (remove entry when qty hits 0).
+        set((state) => {
+          if (!state.run) return;
+          state.run.shopStock = state.run.shopStock
+            .map((e) => (e.itemId === itemId ? { ...e, qty: e.qty - 1 } : e))
+            .filter((e) => e.qty > 0);
+        });
+      },
     })),
     {
       name: 'ttrpg-campaign',

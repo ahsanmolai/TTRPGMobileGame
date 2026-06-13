@@ -5,7 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CharacterStats, SpellSlotState } from 'src/engine/character';
 import { Condition } from 'src/engine/combat';
 import { applyLevelUp, applyLongRest, applyShortRest } from 'src/engine/leveling';
-import { addItem } from 'src/engine/inventory';
+import { addItem, canEquip, equipItem, sellItem, drinkPotion, bestPotion } from 'src/engine/inventory';
+import { rollDamage } from 'src/engine/dice';
 import { getPreset } from 'src/data/presetCharacters';
 
 interface CharacterState {
@@ -32,6 +33,12 @@ interface CharacterState {
     spellSlots?: SpellSlotState,
     inventory?: { itemId: string; qty: number }[],
   ) => void;
+  /** Equip an item from the bag. No-op if canEquip fails. */
+  equip: (itemId: string) => void;
+  /** Sell one of an item from the bag (credits half price). No-op if not owned. */
+  sell: (itemId: string) => void;
+  /** Drink the best potion out of combat. Rolls heal dice and applies HP. No-op if no potion or already at max HP. */
+  drinkPotionOutOfCombat: () => void;
   resetCharacter: () => void;
   clearCharacter: () => void;
 }
@@ -111,6 +118,29 @@ export const useCharacterStore = create<CharacterState>()(
           if (inventory) {
             state.character.inventory = inventory;
           }
+        }),
+      equip: (itemId) =>
+        set((state) => {
+          if (!state.character) return;
+          const check = canEquip(state.character, itemId);
+          if (!check.ok) return;
+          state.character = equipItem(state.character, itemId);
+        }),
+      sell: (itemId) =>
+        set((state) => {
+          if (!state.character) return;
+          state.character = sellItem(state.character, itemId);
+        }),
+      drinkPotionOutOfCombat: () =>
+        set((state) => {
+          if (!state.character) return;
+          if (state.character.currentHP >= state.character.maxHP) return;
+          const potion = bestPotion(state.character);
+          if (!potion) return;
+          const { character: afterDrink, healed } = drinkPotion(state.character);
+          const healAmount = healed ? rollDamage(healed).total : 0;
+          const newHP = Math.min(afterDrink.maxHP, afterDrink.currentHP + healAmount);
+          state.character = { ...afterDrink, currentHP: newHP };
         }),
       resetCharacter: () => {
         const id = get().selectedPresetId;

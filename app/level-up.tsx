@@ -56,12 +56,20 @@ export default function LevelUpScreen() {
         </Text>
       </ScrollView>
 
-      <Pressable
-        style={({ pressed }) => [styles.confirm, pressed && styles.pressed]}
-        onPress={() => router.replace('/campaign')}
-      >
-        <Text style={styles.confirmText}>Descend to Floor {newFloor}</Text>
-      </Pressable>
+      <View style={styles.footerRow}>
+        <Pressable
+          style={({ pressed }) => [styles.merchantBtn, pressed && styles.pressed]}
+          onPress={() => router.push('/shop')}
+        >
+          <Text style={styles.merchantBtnText}>Visit Merchant</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.confirm, pressed && styles.pressed]}
+          onPress={() => router.replace('/campaign')}
+        >
+          <Text style={styles.confirmText}>Descend to Floor {newFloor}</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -199,8 +207,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.lg,
   },
-  confirm: {
+  footerRow: {
+    gap: spacing.sm,
     margin: spacing.md,
+  },
+  confirm: {
     paddingVertical: spacing.md,
     backgroundColor: colors.accent.crimson,
     borderWidth: 2,
@@ -213,6 +224,19 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  merchantBtn: {
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background.elevated,
+    borderWidth: 1,
+    borderColor: colors.accent.goldDim,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  merchantBtnText: {
+    color: colors.accent.gold,
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.85,
