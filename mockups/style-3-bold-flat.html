@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeons n Dice — Style 3: Bold Flat</title>
+<style>
+  :root{
+    --bg:#222a3a; --bg2:#2c3650; --panel:#33405e; --panel2:#3d4c6e; --edge:#46567b;
+    --gold:#ffcb45; --crimson:#ff5d6c; --teal:#2dd4bf; --violet:#a78bfa; --blue:#4f8cff;
+    --text:#f3f6ff; --dim:#aab3cc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#161b27;font-family:'Nunito',ui-rounded,'Segoe UI',Verdana,sans-serif;color:var(--text);padding:28px;}
+  h1.page{margin:0 0 4px;font-weight:800}
+  p.page{color:#aab3cc;margin:0 0 24px;max-width:760px}
+  .stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:360px;height:740px;border-radius:38px;background:linear-gradient(180deg,var(--bg2),var(--bg));
+    border:none;box-shadow:0 30px 70px rgba(0,0,0,.5);overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .cap{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;font-weight:700}
+  /* TITLE */
+  .title-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px}
+  .logo{text-align:center;line-height:.95}
+  .logo .l1{font-size:52px;font-weight:900;color:var(--gold);letter-spacing:1px}
+  .logo .l2{font-size:52px;font-weight:900;color:var(--text);letter-spacing:1px;margin-top:-6px}
+  .logo .l2 b{color:var(--teal)}
+  .logo .sub{margin-top:12px;color:var(--dim);letter-spacing:4px;font-size:12px;text-transform:uppercase;font-weight:700}
+  .menu{display:flex;flex-direction:column;gap:14px;width:100%;margin-top:8px}
+  .btn{padding:16px;border-radius:16px;text-align:center;font-weight:800;letter-spacing:1px;color:#1b2233;
+    background:var(--gold);box-shadow:0 6px 0 #c79a23}
+  .btn.alt{background:var(--panel2);color:var(--text);box-shadow:0 6px 0 #2a3550}
+  .foot{color:var(--dim);font-size:11px;letter-spacing:2px;padding:14px;text-align:center;font-weight:700}
+  /* COMBAT */
+  .combat{flex:1;display:flex;flex-direction:column;padding:30px 14px 14px}
+  .init{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+  .pip{font-size:10px;color:var(--dim);border-radius:20px;padding:5px 10px;background:var(--panel);font-weight:700}
+  .pip.on{color:#1b2233;background:var(--gold);font-weight:800}
+  .enemies{display:flex;gap:12px;justify-content:center;margin:4px 0;min-height:172px;align-items:flex-end}
+  .unit{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .disc{background:var(--panel);border-radius:18px;padding:8px 10px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+  .unit .name{font-size:11px;color:var(--text);font-weight:700}
+  .hpbar{width:90px;height:10px;border-radius:10px;background:#1d2435;overflow:hidden}
+  .hpbar i{display:block;height:100%;background:var(--crimson);border-radius:10px}
+  .hpbar.good i{background:var(--teal)}
+  .log{flex:1;margin:8px 2px;border-radius:16px;background:var(--panel);padding:12px;font-size:12px;line-height:1.7;overflow:hidden}
+  .log .crit{color:var(--gold);font-weight:800}
+  .log .dmg{color:var(--crimson);font-weight:700}
+  .log .sys{color:var(--dim)}
+  .player{display:flex;align-items:center;gap:10px;border-radius:16px;background:var(--panel);padding:10px 12px;margin:0 2px}
+  .player .name{color:var(--gold);font-weight:800;font-size:13px}
+  .actions{display:flex;gap:8px;margin:10px 2px 0}
+  .act{flex:1;text-align:center;padding:13px 4px;border-radius:14px;font-size:12px;font-weight:800;color:#1b2233}
+  .a-atk{background:var(--crimson);box-shadow:0 5px 0 #c23d4a}
+  .a-mag{background:var(--blue);box-shadow:0 5px 0 #3567c4}
+  .a-pot{background:var(--teal);box-shadow:0 5px 0 #1ba596}
+  .a-end{background:var(--panel2);color:var(--text);box-shadow:0 5px 0 #2a3550}
+  /* dice overlay */
+  .diceover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(22,27,39,.78);pointer-events:none}
+  .die{width:120px;height:120px;animation:pop 1.05s cubic-bezier(.34,1.56,.64,1) infinite}
+  .rolllabel{position:absolute;bottom:120px;left:0;right:0;text-align:center;color:var(--teal);letter-spacing:3px;font-size:12px;text-transform:uppercase;font-weight:800}
+  @keyframes pop{0%{transform:scale(.7) rotate(-20deg)}55%{transform:scale(1.12) rotate(12deg)}100%{transform:scale(.7) rotate(-20deg)}}
+</style>
+</head>
+<body>
+  <h1 class="page">Dungeons n Dice — Style 3: <span style="color:#2dd4bf">Bold Flat</span></h1>
+  <p class="page">A polished modern board-game look: flat geometric sprites, bright saturated colors on cool slate, chunky rounded buttons with playful depth. The most readable and approachable on small screens, and the cheapest to extend across all 90+ creature archetypes.</p>
+  <div class="stage">
+
+    <!-- TITLE -->
+    <div class="phone">
+      <span class="cap">Title</span>
+      <div class="title-wrap">
+        <!-- flat d20 emblem -->
+        <svg width="118" height="118" viewBox="0 0 100 100">
+          <polygon points="50,8 88,30 88,70 50,92 12,70 12,30" fill="#ffcb45"/>
+          <polygon points="50,8 88,30 50,42 12,30" fill="#ffd86e"/>
+          <polygon points="50,42 88,30 88,70 50,92" fill="#e8a92e"/>
+          <polygon points="50,42 12,30 12,70 50,92" fill="#f6bd3c"/>
+          <text x="50" y="58" font-family="Nunito,sans-serif" font-weight="900" font-size="26" fill="#1b2233" text-anchor="middle">20</text>
+        </svg>
+        <div class="logo">
+          <div class="l1">Dungeons</div>
+          <div class="l2">n <b>Dice</b></div>
+          <div class="sub">A d20 dungeon crawler</div>
+        </div>
+        <div class="menu">
+          <div class="btn">CONTINUE RUN — FLOOR 7</div>
+          <div class="btn alt">NEW CAMPAIGN</div>
+        </div>
+      </div>
+      <div class="foot">v0.3 — The Living Dungeon</div>
+    </div>
+
+    <!-- COMBAT -->
+    <div class="phone">
+      <span class="cap">Combat</span>
+      <div class="combat">
+        <div class="init">
+          <span class="pip on">Thorin 18</span>
+          <span class="pip">Dragon 14</span>
+          <span class="pip">Goblin 9</span>
+        </div>
+
+        <div class="enemies">
+          <div class="unit">
+            <div class="disc">
+            <!-- GOBLIN flat -->
+            <svg width="68" height="78" viewBox="0 0 100 110">
+              <path d="M30 40 Q14 30 9 15 Q27 23 35 35Z" fill="#3fae6b"/><path d="M70 40 Q86 30 91 15 Q73 23 65 35Z" fill="#3fae6b"/>
+              <path d="M30 64 Q50 58 70 64 L66 98 Q50 104 34 98Z" fill="#2f8f55"/>
+              <ellipse cx="50" cy="46" rx="24" ry="22" fill="#46c47a"/>
+              <circle cx="41" cy="46" r="4.5" fill="#1b2233"/><circle cx="59" cy="46" r="4.5" fill="#1b2233"/>
+              <path d="M41 57 Q50 63 59 57" fill="none" stroke="#1b2233" stroke-width="3" stroke-linecap="round"/>
+              <rect x="72" y="56" width="22" height="5" rx="2.5" transform="rotate(-25 83 58)" fill="#cdd6e6"/>
+            </svg>
+            </div>
+            <div class="name">Goblin</div>
+            <div class="hpbar"><i style="width:60%"></i></div>
+          </div>
+          <div class="unit">
+            <div class="disc">
+            <!-- DRAGON flat -->
+            <svg width="118" height="110" viewBox="0 0 150 130">
+              <path d="M20 70 Q-4 42 7 23 Q34 41 44 60Z" fill="#c2425a"/><path d="M130 70 Q154 42 143 23 Q116 41 106 60Z" fill="#c2425a"/>
+              <path d="M55 50 Q75 30 95 50 L104 92 Q75 108 46 92Z" fill="#e15a72"/>
+              <path d="M95 44 Q120 30 126 12 Q128 34 110 52Z" fill="#e15a72"/>
+              <circle cx="112" cy="40" r="14" fill="#ff7184"/>
+              <path d="M70 100 Q60 122 38 124 Q54 110 56 98Z" fill="#c2425a"/>
+              <circle cx="116" cy="38" r="4" fill="#1b2233"/>
+              <path d="M122 47 L138 45" stroke="#ffcb45" stroke-width="3" stroke-linecap="round"/>
+              <path d="M60 48 L66 40 L72 48 L78 40 L84 48" fill="none" stroke="#ffcb45" stroke-width="2.5"/>
+            </svg>
+            </div>
+            <div class="name">Ancient Dragon</div>
+            <div class="hpbar"><i style="width:82%"></i></div>
+          </div>
+        </div>
+
+        <div class="log">
+          <div><span class="crit">⚔ Natural 20!</span> Thorin crits the Dragon.</div>
+          <div><span class="dmg">−27 slashing</span> (Dragon 82/240)</div>
+          <div class="sys">The Goblin readies its blade…</div>
+        </div>
+
+        <div class="player">
+          <!-- DWARF FIGHTER flat -->
+          <svg width="54" height="54" viewBox="0 0 100 100">
+            <path d="M30 30 Q50 17 70 30 L70 41 L30 41Z" fill="#cdd6e6"/>
+            <rect x="34" y="40" width="32" height="10" rx="4" fill="#e6ecf6"/>
+            <path d="M34 50 Q50 86 66 50Z" fill="#d99a3c"/>
+            <rect x="31" y="50" width="38" height="34" rx="8" fill="#4f8cff"/>
+            <circle cx="80" cy="62" r="14" fill="#ffcb45"/><circle cx="80" cy="62" r="6" fill="#e8a92e"/>
+            <rect x="38" y="35" width="9" height="6" rx="2" fill="#4f8cff"/><rect x="53" y="35" width="9" height="6" rx="2" fill="#4f8cff"/>
+            <rect x="20" y="38" width="5" height="24" rx="2" fill="#cdd6e6"/>
+          </svg>
+          <div style="flex:1">
+            <div class="name">Thorin · Lv 7 Fighter</div>
+            <div class="hpbar good" style="margin-top:6px"><i style="width:74%"></i></div>
+          </div>
+          <div style="font-size:11px;color:var(--dim);text-align:right;font-weight:700">AC 19<br>🪙 340</div>
+        </div>
+
+        <div class="actions">
+          <div class="act a-atk">⚔ Attack</div>
+          <div class="act a-mag">✨ Spells</div>
+          <div class="act a-pot">🧪 ×3</div>
+          <div class="act a-end" style="color:#fff">End</div>
+        </div>
+      </div>
+
+      <div class="diceover">
+        <svg class="die" viewBox="0 0 100 100">
+          <polygon points="50,8 88,30 88,70 50,92 12,70 12,30" fill="#ffcb45"/>
+          <polygon points="50,8 88,30 50,42 12,30" fill="#ffd86e"/>
+          <polygon points="50,42 88,30 88,70 50,92" fill="#e8a92e"/>
+          <polygon points="50,42 12,30 12,70 50,92" fill="#f6bd3c"/>
+          <text class="num" id="dnum" x="50" y="58" font-family="Nunito,sans-serif" font-weight="900" font-size="28" fill="#1b2233" text-anchor="middle">14</text>
+        </svg>
+        <div class="rolllabel">Rolling initiative…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const el=document.getElementById('dnum');let t=0;
+  setInterval(()=>{t++; if(t%14===0){el.textContent='18';}else{el.textContent=1+Math.floor(Math.random()*20);}},80);
+</script>
+</body>
+</html>
