@@ -77,8 +77,8 @@ function parseCR(md) {
 }
 
 function normaliseDamageDice(expr) {
-  // "1d6 + 2" → "1d6+2", handles unicode minus "−"
-  return expr.replace(/\s+/g, '').replace(/−/g, '-');
+  // "1d6 + 2" → "1d6+2"; unicode minus "−", en dash "–", em dash "—" → "-"
+  return expr.replace(/\s+/g, '').replace(/[−–—]/g, '-');
 }
 
 function parseDamageType(typeStr) {

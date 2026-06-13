@@ -32,6 +32,8 @@ export interface WeaponData {
   properties: WeaponProperty[];
   versatileDice?: string;
   range?: { normal: number; long: number };
+  /** Enchantment bonus added to both attack rolls and damage (magic weapons). */
+  magicBonus?: number;
 }
 
 export const WEAPONS: Record<string, WeaponData> = {

@@ -187,9 +187,9 @@ describe('leveling.applyLevelUp', () => {
     expect(c.maxHP).toBe(calculateMaxHP('fighter', 5, conMod) + 5);
   });
 
-  it('warlock plays as weapon user until level 3, then learns hold_person', () => {
+  it('warlock starts with eldritch blast, then learns hold_person at level 3', () => {
     const l1 = buildCharacter(makeBuild('warlock'));
-    expect(l1.knownSpells).toEqual([]);
+    expect(l1.knownSpells).toEqual(['eldritch_blast']);
     const l3 = levelTo('warlock', 3);
     expect(l3.knownSpells).toContain('hold_person');
   });

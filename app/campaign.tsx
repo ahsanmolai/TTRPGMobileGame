@@ -126,6 +126,23 @@ export default function CampaignScreen() {
             </Text>
             {character.spellSlots && <Text style={styles.charStat}>{slotSummary(character.spellSlots)}</Text>}
             <Text style={styles.charStat}>{run.xpTotal.toLocaleString()} XP</Text>
+            <Text style={styles.charStat}>🪙 {character.gold}</Text>
+          </View>
+          <View style={styles.charActions}>
+            <Pressable
+              style={({ pressed }) => [styles.charActionBtn, pressed && styles.pressed]}
+              onPress={() => router.push('/inventory')}
+            >
+              <Text style={styles.charActionText}>Inventory</Text>
+            </Pressable>
+            {run.fightIndex === 0 && (
+              <Pressable
+                style={({ pressed }) => [styles.charActionBtn, pressed && styles.pressed]}
+                onPress={() => router.push('/shop')}
+              >
+                <Text style={styles.charActionText}>Merchant</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -353,6 +370,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: 3,
+  },
+  charActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  charActionBtn: {
+    flex: 1,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.background.elevated,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.accent.goldDim,
+    alignItems: 'center',
+  },
+  charActionText: {
+    color: colors.accent.gold,
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
   },
   footer: {
     padding: spacing.md,

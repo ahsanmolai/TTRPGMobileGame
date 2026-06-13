@@ -12,6 +12,8 @@ import {
   checkCombatEnd,
   makePlayerParticipant,
   makeEnemyParticipant,
+  chooseEnemyAction,
+  averageAttackDamage,
 } from 'src/engine/combat';
 import { CharacterStats } from 'src/engine/character';
 import { WEAPONS } from 'src/data/weapons';
@@ -277,6 +279,8 @@ describe('combat.makePlayerParticipant + makeEnemyParticipant', () => {
       mainHand: WEAPONS.shortsword,
       classFeatures: ['sneak_attack'],
       attacksPerAction: 1,
+      gold: 0,
+      inventory: [],
     };
     const p = makePlayerParticipant(char);
     expect(p.isPlayer).toBe(true);
@@ -290,6 +294,103 @@ describe('combat.makePlayerParticipant + makeEnemyParticipant', () => {
     expect(p.ac).toBe(15);
     expect(p.maxHP).toBe(7);
     expect(p.id).toBe('goblin_1');
+  });
+});
+
+describe('combat.chooseEnemyAction', () => {
+  it('picks the attack with the highest average damage', () => {
+    const enemy = makeEnemy({
+      enemyStats: {
+        ...ENEMIES.goblin,
+        attacks: [
+          { name: 'Weak Jab', attackBonus: 4, damageDice: '1d4', damageType: 'bludgeoning', range: 'melee' },
+          { name: 'Heavy Slam', attackBonus: 4, damageDice: '3d10+5', damageType: 'bludgeoning', range: 'melee' },
+          { name: 'Bite', attackBonus: 4, damageDice: '2d6+2', damageType: 'piercing', range: 'melee' },
+        ],
+      },
+    });
+    const state: CombatState = {
+      participants: [makePlayer(), enemy],
+      initiativeOrder: ['goblin', 'player'],
+      currentTurnIndex: 0,
+      round: 1,
+      log: [],
+      phase: 'in_progress',
+    };
+    const choice = chooseEnemyAction(enemy, state)!;
+    expect(choice.attack.name).toBe('Heavy Slam');
+    expect(choice.targetId).toBe('player');
+  });
+
+  it('averageAttackDamage computes NdS+B expectation', () => {
+    expect(averageAttackDamage({ name: 'x', attackBonus: 0, damageDice: '2d6+2', damageType: 'slashing', range: 'melee' })).toBe(9);
+    expect(averageAttackDamage({ name: 'x', attackBonus: 0, damageDice: '1d4', damageType: 'slashing', range: 'melee' })).toBe(2.5);
+  });
+});
+
+describe('combat.enemy multiattack', () => {
+  function seedEnemyTurn(multiattackCount: number, playerHP = 10000) {
+    const { useCombatStore } = require('src/store/combatStore');
+    const player = makePlayer({ currentHP: playerHP, maxHP: playerHP });
+    const enemy = makeEnemy({
+      id: 'wolf_1',
+      currentHP: 10000,
+      maxHP: 10000,
+      enemyStats: { ...ENEMIES.goblin, multiattackCount },
+    });
+    useCombatStore.setState({
+      state: {
+        participants: [player, enemy],
+        initiativeOrder: ['wolf_1', 'player'],
+        currentTurnIndex: 0,
+        round: 1,
+        log: [],
+        phase: 'in_progress' as const,
+      },
+      isAnimating: false,
+      pendingAttack: null,
+    });
+    return useCombatStore;
+  }
+
+  const ATTACK_TYPES = ['attack_hit', 'attack_miss', 'critical_hit', 'critical_fail'];
+
+  it('makes multiattackCount attacks in a single turn', () => {
+    const store = seedEnemyTurn(3);
+    store.getState().resolveEnemyTurn();
+    const log = store.getState().state!.log;
+    const attackEntries = log.filter((e: { type: string }) => ATTACK_TYPES.includes(e.type));
+    expect(attackEntries).toHaveLength(3);
+  });
+
+  it('makes one attack when multiattackCount is 1', () => {
+    const store = seedEnemyTurn(1);
+    store.getState().resolveEnemyTurn();
+    const log = store.getState().state!.log;
+    expect(log.filter((e: { type: string }) => ATTACK_TYPES.includes(e.type))).toHaveLength(1);
+  });
+
+  it('stops attacking once the player falls', () => {
+    // 1 HP player, 4 attacks that always hit hard enough to kill (unless nat 1):
+    // after the death log there must never be another attack entry.
+    for (let trial = 0; trial < 20; trial++) {
+      const store = seedEnemyTurn(4, 1);
+      const state = store.getState().state!;
+      const enemy = state.participants.find((p: { id: string }) => p.id === 'wolf_1')!;
+      enemy.enemyStats = {
+        ...enemy.enemyStats!,
+        attacks: [{ name: 'Doom', attackBonus: 100, damageDice: '10d10+100', damageType: 'bludgeoning', range: 'melee' as const }],
+      };
+      store.setState({ state: { ...state } });
+      store.getState().resolveEnemyTurn();
+      const log = store.getState().state!.log;
+      const deathIdx = log.findIndex((e: { type: string }) => e.type === 'death');
+      if (deathIdx >= 0) {
+        const after = log.slice(deathIdx + 1);
+        expect(after.filter((e: { type: string }) => ATTACK_TYPES.includes(e.type))).toHaveLength(0);
+        expect(store.getState().state!.phase).toBe('defeat');
+      }
+    }
   });
 });
 
@@ -320,6 +421,8 @@ describe('combat.extra attack', () => {
       mainHand: WEAPONS.longsword,
       classFeatures: [],
       attacksPerAction,
+      gold: 0,
+      inventory: [],
     };
   }
 
@@ -384,5 +487,110 @@ describe('combat.extra attack', () => {
     const refreshed = next.participants.find((p) => p.id === player.id)!;
     expect(refreshed.attacksUsedThisTurn).toBe(0);
     expect(refreshed.actionsUsed).toEqual([]);
+  });
+});
+
+describe('combat.playerUsePotion', () => {
+  function potionFighter(): CharacterStats {
+    return {
+      id: 'player',
+      name: 'Fighter',
+      race: 'human',
+      classId: 'fighter',
+      level: 1,
+      abilityScores: {
+        strength: 16,
+        dexterity: 12,
+        constitution: 14,
+        intelligence: 10,
+        wisdom: 10,
+        charisma: 10,
+      },
+      maxHP: 30,
+      currentHP: 30,
+      speed: 30,
+      proficientWeapons: ['simple', 'martial'],
+      proficientSaves: ['strength', 'constitution'],
+      savingThrowProficiencies: ['strength', 'constitution'],
+      armor: null,
+      shield: false,
+      mainHand: WEAPONS.longsword,
+      classFeatures: [],
+      attacksPerAction: 1,
+      gold: 0,
+      inventory: [],
+    };
+  }
+
+  // Seed the real combatStore with a wounded player holding `potionQty` healing
+  // potions (2d4+2, heal 4..10). currentHP defaults below maxHP so a heal sticks.
+  function seedPotionFight(potionQty: number, currentHP = 10, maxHP = 30) {
+    const { useCombatStore } = require('src/store/combatStore');
+    const stats: CharacterStats = {
+      ...potionFighter(),
+      maxHP,
+      currentHP,
+      inventory: potionQty > 0 ? [{ itemId: 'potion_healing', qty: potionQty }] : [],
+    };
+    const player = makePlayerParticipant(stats);
+    player.ac = 15;
+    player.currentHP = currentHP;
+    player.maxHP = maxHP;
+    const enemy = makeEnemyParticipant({ ...ENEMIES.goblin, maxHP: 10000 }, '1');
+    useCombatStore.setState({
+      state: {
+        participants: [player, enemy],
+        initiativeOrder: [player.id, enemy.id],
+        currentTurnIndex: 0,
+        round: 1,
+        log: [],
+        phase: 'in_progress' as const,
+      },
+      isAnimating: false,
+      pendingAttack: null,
+    });
+    return useCombatStore;
+  }
+
+  it('heals within the potion dice bounds, decrements the stack, and spends the bonus action', () => {
+    const store = seedPotionFight(2, 10, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    // 2d4+2 heals 4..10 from a base of 10
+    expect(p.currentHP).toBeGreaterThanOrEqual(14);
+    expect(p.currentHP).toBeLessThanOrEqual(20);
+    expect(p.playerStats!.inventory.find((e: { itemId: string }) => e.itemId === 'potion_healing')!.qty).toBe(1);
+    expect(p.actionsUsed).toContain('bonus_action');
+  });
+
+  it('refuses a second potion in the same turn (bonus action already spent)', () => {
+    const store = seedPotionFight(2, 10, 30);
+    store.getState().playerUsePotion();
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    // only one potion was consumed
+    expect(p.playerStats!.inventory.find((e: { itemId: string }) => e.itemId === 'potion_healing')!.qty).toBe(1);
+  });
+
+  it('removes the stack entirely when the last potion is drunk', () => {
+    const store = seedPotionFight(1, 10, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    expect(p.playerStats!.inventory.find((e: { itemId: string }) => e.itemId === 'potion_healing')).toBeUndefined();
+  });
+
+  it('is a no-op when the player holds no potion', () => {
+    const store = seedPotionFight(0, 10, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    expect(p.currentHP).toBe(10);
+    expect(p.actionsUsed).not.toContain('bonus_action');
+  });
+
+  it('never heals past maxHP', () => {
+    const store = seedPotionFight(2, 29, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    expect(p.currentHP).toBe(30);
   });
 });

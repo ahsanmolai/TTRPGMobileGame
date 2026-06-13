@@ -31,6 +31,14 @@ export default function RootLayout() {
               name="level-up"
               options={{ animation: 'slide_from_bottom' }}
             />
+            <Stack.Screen
+              name="shop"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="inventory"
+              options={{ animation: 'slide_from_right' }}
+            />
           </Stack>
         </View>
       </SafeAreaProvider>

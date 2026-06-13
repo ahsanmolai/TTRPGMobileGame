@@ -5,6 +5,7 @@ import {
   rollDamage,
   RollResult,
   rollWithModifier,
+  parseDamageNotation,
 } from 'src/engine/dice';
 import {
   CharacterStats,
@@ -17,6 +18,7 @@ import {
 import { SpellId } from 'src/data/spellbook';
 import { WeaponData } from 'src/data/weapons';
 import { EnemyStatBlock, EnemyAttack } from 'src/data/enemies';
+import { getClassAbility } from 'src/engine/classAbilities';
 
 export type Condition =
   | 'poisoned'
@@ -45,6 +47,14 @@ export interface CombatParticipant {
   actionsUsed: ActionType[];
   /** Weapon attacks made this turn — the action is spent when this reaches attacksPerAction. */
   attacksUsedThisTurn?: number;
+  /** Class-ability state (players only). */
+  raging?: boolean;
+  abilityUsesRemaining?: number;
+  /** Rogue Aim: the next attack this turn rolls with advantage. */
+  aimAdvantage?: boolean;
+  sneakAttackUsedThisTurn?: boolean;
+  /** Paladin: next melee hit spends a slot for smite damage. */
+  smiteArmed?: boolean;
   playerStats?: CharacterStats;
   enemyStats?: EnemyStatBlock;
   spellSlots?: SpellSlotState;
@@ -125,6 +135,7 @@ export function makeLogEntry(
 }
 
 export function makePlayerParticipant(character: CharacterStats): CombatParticipant {
+  const ability = getClassAbility(character.classId, character.level);
   return {
     id: character.id,
     name: character.name,
@@ -138,6 +149,11 @@ export function makePlayerParticipant(character: CharacterStats): CombatParticip
     conditions: [],
     actionsUsed: [],
     attacksUsedThisTurn: 0,
+    raging: false,
+    abilityUsesRemaining: ability ? (Number.isFinite(ability.usesPerFight) ? ability.usesPerFight : undefined) : 0,
+    aimAdvantage: false,
+    sneakAttackUsedThisTurn: false,
+    smiteArmed: false,
     playerStats: character,
     spellSlots: character.spellSlots ? { ...character.spellSlots } : undefined,
     knownSpells: character.knownSpells ? [...character.knownSpells] : undefined,
@@ -261,12 +277,12 @@ export function resolvePlayerAttack(
   attacker: CombatParticipant,
   target: CombatParticipant,
   weapon: WeaponData,
-  options: { forceAdvantage?: boolean; forceDisadvantage?: boolean } = {},
+  options: { forceAdvantage?: boolean; forceDisadvantage?: boolean; bonusDamage?: number } = {},
 ): AttackResult {
   if (!attacker.playerStats) throw new Error('Attacker is not a player');
   const character = attacker.playerStats;
   const attackBonus = getAttackBonus(character, weapon);
-  const damageBonus = getWeaponDamageAbilityMod(character, weapon);
+  const damageBonus = getWeaponDamageAbilityMod(character, weapon) + (options.bonusDamage ?? 0);
   const isRanged = weapon.properties.includes('ranged');
   return resolveAttack({
     attacker,
@@ -275,7 +291,8 @@ export function resolvePlayerAttack(
     damageDice: weapon.damageDice,
     damageBonus,
     range: isRanged ? 'ranged' : 'melee',
-    ...options,
+    forceAdvantage: options.forceAdvantage,
+    forceDisadvantage: options.forceDisadvantage,
   });
 }
 
@@ -372,7 +389,15 @@ export function advanceTurn(state: CombatState): CombatState {
   // reset actionsUsed for the actor whose turn just began
   const newActorId = state.initiativeOrder[nextIndex];
   const newParticipants = state.participants.map((p) =>
-    p.id === newActorId ? { ...p, actionsUsed: [] as ActionType[], attacksUsedThisTurn: 0 } : p,
+    p.id === newActorId
+      ? {
+          ...p,
+          actionsUsed: [] as ActionType[],
+          attacksUsedThisTurn: 0,
+          aimAdvantage: false,
+          sneakAttackUsedThisTurn: false,
+        }
+      : p,
   );
   return {
     ...state,
@@ -405,7 +430,16 @@ export function describeAttack(
   return `${attacker.name} attacks ${target.name} with ${weaponOrAttack}: ${result.attackTotal} vs AC ${result.targetAC} — Hit for ${result.damage} damage.`;
 }
 
-// Simple enemy AI: pick first available attack, target the player.
+// Simple enemy AI: pick the highest-average-damage attack, target the player.
+export function averageAttackDamage(attack: EnemyAttack): number {
+  try {
+    const { count, sides, bonus } = parseDamageNotation(attack.damageDice);
+    return (count * (sides + 1)) / 2 + bonus;
+  } catch {
+    return 0;
+  }
+}
+
 export function chooseEnemyAction(
   enemy: CombatParticipant,
   state: CombatState,
@@ -413,9 +447,8 @@ export function chooseEnemyAction(
   if (!enemy.enemyStats) return null;
   const player = state.participants.find((p) => p.isPlayer && p.currentHP > 0);
   if (!player) return null;
-  // pick the highest expected-damage attack
   const attacks = enemy.enemyStats.attacks;
   if (attacks.length === 0) return null;
-  // simple: first attack (could be expanded later)
-  return { attack: attacks[0], targetId: player.id };
+  const best = attacks.reduce((a, b) => (averageAttackDamage(b) > averageAttackDamage(a) ? b : a));
+  return { attack: best, targetId: player.id };
 }

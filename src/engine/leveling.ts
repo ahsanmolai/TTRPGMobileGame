@@ -140,6 +140,9 @@ export function buildCharacter(build: CharacterBuild): CharacterStats {
     mainHand: getWeapon(equipment.weaponId),
     classFeatures,
     attacksPerAction: getAttacksPerAction(build.classId, 1),
+    gold: 25,
+    inventory: [{ itemId: 'potion_healing', qty: 2 }],
+    trinketId: null,
     portrait: build.portrait,
     ...(caster
       ? {
