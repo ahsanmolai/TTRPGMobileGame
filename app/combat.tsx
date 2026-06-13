@@ -21,9 +21,18 @@ import { SpellMenu } from 'src/components/SpellMenu';
 import { HPBar } from 'src/components/HPBar';
 import { colors, typography, spacing } from 'src/theme/theme';
 import { SpellDefinition, SpellId, getSpell, SPELLS } from 'src/data/spellbook';
-import { SpellSlotState } from 'src/engine/character';
+import { CharacterStats, SpellSlotState } from 'src/engine/character';
+import { ITEMS } from 'src/data/items';
 
 const ENEMY_TURN_DELAY_MS = 1200;
+
+/** Total healing potions held in the bag, across all potion tiers. */
+function totalPotions(c: CharacterStats): number {
+  return c.inventory.reduce((sum, e) => {
+    const item = ITEMS[e.itemId];
+    return item && item.kind === 'potion' ? sum + e.qty : sum;
+  }, 0);
+}
 
 export default function CombatScreen() {
   const router = useRouter();
@@ -33,6 +42,7 @@ export default function CombatScreen() {
   const playerAttack = useCombatStore((s) => s.playerAttack);
   const playerCastSpell = useCombatStore((s) => s.playerCastSpell);
   const playerUseAbility = useCombatStore((s) => s.playerUseAbility);
+  const playerUsePotion = useCombatStore((s) => s.playerUsePotion);
   const playerEndTurn = useCombatStore((s) => s.playerEndTurn);
   const resolveEnemyTurn = useCombatStore((s) => s.resolveEnemyTurn);
   const clearCombat = useCombatStore((s) => s.clearCombat);
@@ -97,6 +107,7 @@ export default function CombatScreen() {
   const knownSpells: SpellDefinition[] = knownSpellIds.map((id) => SPELLS[id]).filter(Boolean);
   const hasSpells = knownSpells.length > 0;
   const playerSpellSlots = player?.spellSlots ?? {};
+  const potionCount = player?.playerStats ? totalPotions(player.playerStats) : 0;
 
   const classAbility = character ? getClassAbility(character.classId, character.level) : null;
   const abilityState: AbilityButtonState | null = classAbility && player
@@ -169,7 +180,8 @@ export default function CombatScreen() {
 
   function handleVictoryConfirm() {
     if (player) {
-      syncFromCombat(player.currentHP, player.spellSlots);
+      // carry HP, spent slots, AND consumed potions back so they don't reappear
+      syncFromCombat(player.currentHP, player.spellSlots, player.playerStats?.inventory);
     }
     const result = recordFightVictory();
     clearCombat();
@@ -222,9 +234,11 @@ export default function CombatScreen() {
         hasLiveEnemies={liveEnemies.length > 0}
         hasSpells={hasSpells}
         ability={abilityState}
+        potionCount={potionCount}
         onAttack={handleAttackPressed}
         onCastSpell={() => setShowSpellMenu(true)}
         onUseAbility={handleUseAbility}
+        onUsePotion={() => playerUsePotion()}
         onEndTurn={playerEndTurn}
       />
 

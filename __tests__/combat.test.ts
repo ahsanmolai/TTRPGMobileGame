@@ -489,3 +489,108 @@ describe('combat.extra attack', () => {
     expect(refreshed.actionsUsed).toEqual([]);
   });
 });
+
+describe('combat.playerUsePotion', () => {
+  function potionFighter(): CharacterStats {
+    return {
+      id: 'player',
+      name: 'Fighter',
+      race: 'human',
+      classId: 'fighter',
+      level: 1,
+      abilityScores: {
+        strength: 16,
+        dexterity: 12,
+        constitution: 14,
+        intelligence: 10,
+        wisdom: 10,
+        charisma: 10,
+      },
+      maxHP: 30,
+      currentHP: 30,
+      speed: 30,
+      proficientWeapons: ['simple', 'martial'],
+      proficientSaves: ['strength', 'constitution'],
+      savingThrowProficiencies: ['strength', 'constitution'],
+      armor: null,
+      shield: false,
+      mainHand: WEAPONS.longsword,
+      classFeatures: [],
+      attacksPerAction: 1,
+      gold: 0,
+      inventory: [],
+    };
+  }
+
+  // Seed the real combatStore with a wounded player holding `potionQty` healing
+  // potions (2d4+2, heal 4..10). currentHP defaults below maxHP so a heal sticks.
+  function seedPotionFight(potionQty: number, currentHP = 10, maxHP = 30) {
+    const { useCombatStore } = require('src/store/combatStore');
+    const stats: CharacterStats = {
+      ...potionFighter(),
+      maxHP,
+      currentHP,
+      inventory: potionQty > 0 ? [{ itemId: 'potion_healing', qty: potionQty }] : [],
+    };
+    const player = makePlayerParticipant(stats);
+    player.ac = 15;
+    player.currentHP = currentHP;
+    player.maxHP = maxHP;
+    const enemy = makeEnemyParticipant({ ...ENEMIES.goblin, maxHP: 10000 }, '1');
+    useCombatStore.setState({
+      state: {
+        participants: [player, enemy],
+        initiativeOrder: [player.id, enemy.id],
+        currentTurnIndex: 0,
+        round: 1,
+        log: [],
+        phase: 'in_progress' as const,
+      },
+      isAnimating: false,
+      pendingAttack: null,
+    });
+    return useCombatStore;
+  }
+
+  it('heals within the potion dice bounds, decrements the stack, and spends the bonus action', () => {
+    const store = seedPotionFight(2, 10, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    // 2d4+2 heals 4..10 from a base of 10
+    expect(p.currentHP).toBeGreaterThanOrEqual(14);
+    expect(p.currentHP).toBeLessThanOrEqual(20);
+    expect(p.playerStats!.inventory.find((e: { itemId: string }) => e.itemId === 'potion_healing')!.qty).toBe(1);
+    expect(p.actionsUsed).toContain('bonus_action');
+  });
+
+  it('refuses a second potion in the same turn (bonus action already spent)', () => {
+    const store = seedPotionFight(2, 10, 30);
+    store.getState().playerUsePotion();
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    // only one potion was consumed
+    expect(p.playerStats!.inventory.find((e: { itemId: string }) => e.itemId === 'potion_healing')!.qty).toBe(1);
+  });
+
+  it('removes the stack entirely when the last potion is drunk', () => {
+    const store = seedPotionFight(1, 10, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    expect(p.playerStats!.inventory.find((e: { itemId: string }) => e.itemId === 'potion_healing')).toBeUndefined();
+  });
+
+  it('is a no-op when the player holds no potion', () => {
+    const store = seedPotionFight(0, 10, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    expect(p.currentHP).toBe(10);
+    expect(p.actionsUsed).not.toContain('bonus_action');
+  });
+
+  it('never heals past maxHP', () => {
+    const store = seedPotionFight(2, 29, 30);
+    store.getState().playerUsePotion();
+    const p = store.getState().state!.participants[0];
+    expect(p.currentHP).toBe(30);
+  });
+});

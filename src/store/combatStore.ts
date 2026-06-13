@@ -21,6 +21,7 @@ import {
   CombatLogEntry,
 } from 'src/engine/combat';
 import { CharacterStats, calculateAC, getModifier, getProficiencyBonus, spendSpellSlot } from 'src/engine/character';
+import { bestPotion, drinkPotion } from 'src/engine/inventory';
 import { ENEMIES } from 'src/data/enemies';
 import { SpellId, getSpell } from 'src/data/spellbook';
 import { resolveSpell } from 'src/engine/spells';
@@ -42,6 +43,7 @@ interface CombatStoreState {
   playerAttack: (targetId: string) => void;
   playerCastSpell: (spellId: SpellId, slotLevel: number, targetIds: string[]) => void;
   playerUseAbility: (targetId?: string) => void;
+  playerUsePotion: () => void;
   playerEndTurn: () => void;
   resolveEnemyTurn: () => void;
   setAnimating: (val: boolean) => void;
@@ -384,6 +386,45 @@ export const useCombatStore = create<CombatStoreState>()(
         if (end !== 'in_progress') {
           s.state.phase = end;
         }
+      });
+    },
+
+    playerUsePotion: () => {
+      const cs = get().state;
+      if (!cs || cs.phase !== 'in_progress') return;
+      const actor = currentActor(cs);
+      if (!actor || !actor.isPlayer || !actor.playerStats) return;
+      // Drinking a potion is a bonus action — refuse if one is already spent.
+      if (actor.actionsUsed.includes('bonus_action')) return;
+
+      const potion = bestPotion(actor.playerStats);
+      if (!potion) return;
+
+      // drinkPotion is pure: it decrements the stack and hands back the heal
+      // dice, but never rolls or applies HP — the store does that here.
+      const { character: newStats, healed } = drinkPotion(actor.playerStats);
+      if (!healed) return;
+      const heal = rollDamage(healed).total;
+
+      set((s) => {
+        if (!s.state) return;
+        const round = s.state.round;
+        const actorIdx = s.state.participants.findIndex((p) => p.id === actor.id);
+        if (actorIdx < 0) return;
+        const draft = s.state.participants[actorIdx];
+
+        // Patch individual fields on the draft. newStats.inventory is a fresh
+        // (frozen) array, so reassigning playerStats.inventory to it is safe;
+        // wholesale-replacing playerStats would import its frozen arrays and
+        // break later index writes — same gotcha as playerCastSpell.
+        draft.currentHP = Math.min(draft.maxHP, draft.currentHP + heal);
+        if (draft.playerStats) draft.playerStats.inventory = newStats.inventory;
+        draft.actionsUsed.push('bonus_action');
+
+        appendLog(
+          s.state,
+          makeLogEntry(round, 'heal', actor.name, `${actor.name} drinks a ${potion.name} and recovers ${heal} HP. (${draft.currentHP}/${draft.maxHP} HP)`),
+        );
       });
     },
 

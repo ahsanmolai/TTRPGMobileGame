@@ -19,9 +19,12 @@ interface ActionBarProps {
   hasLiveEnemies: boolean;
   hasSpells: boolean;
   ability?: AbilityButtonState | null;
+  /** Number of healing potions the player holds; omit to hide the Item button. */
+  potionCount?: number;
   onAttack: () => void;
   onCastSpell: () => void;
   onUseAbility?: () => void;
+  onUsePotion?: () => void;
   onEndTurn: () => void;
 }
 
@@ -33,15 +36,18 @@ export function ActionBar({
   hasLiveEnemies,
   hasSpells,
   ability,
+  potionCount,
   onAttack,
   onCastSpell,
   onUseAbility,
+  onUsePotion,
   onEndTurn,
 }: ActionBarProps) {
   const disabled = !isPlayerTurn || isAnimating;
   const attackDisabled = disabled || actionUsed || !hasLiveEnemies;
   const spellDisabled = disabled || (actionUsed && bonusActionUsed);
   const abilityDisabled = disabled || !!ability?.disabled;
+  const potionDisabled = disabled || bonusActionUsed || !potionCount;
 
   return (
     <View style={styles.container}>
@@ -93,6 +99,21 @@ export function ActionBar({
           <View style={[styles.pip, bonusActionUsed && actionUsed ? styles.pipUsed : styles.pipAvailable]} />
         </Pressable>
       )}
+      {potionCount !== undefined && (
+        <Pressable
+          onPress={onUsePotion}
+          disabled={potionDisabled}
+          style={({ pressed }) => [
+            styles.button,
+            styles.potion,
+            potionDisabled && styles.disabled,
+            pressed && !potionDisabled && styles.pressed,
+          ]}
+        >
+          <Text style={styles.buttonText}>🧪</Text>
+          <Text style={styles.usesText}>×{potionCount}</Text>
+        </Pressable>
+      )}
       <Pressable
         onPress={onEndTurn}
         disabled={disabled}
@@ -132,6 +153,10 @@ const styles = StyleSheet.create({
   },
   spells: {
     backgroundColor: colors.accent.sapphire,
+    borderColor: colors.accent.gold,
+  },
+  potion: {
+    backgroundColor: colors.accent.emerald,
     borderColor: colors.accent.gold,
   },
   endTurn: {

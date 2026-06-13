@@ -26,8 +26,12 @@ interface CharacterState {
   gainGold: (amount: number) => void;
   /** Add a dropped/bought item to the bag. No-op without a character. */
   gainItem: (itemId: string, qty?: number) => void;
-  /** Write the player's post-combat HP and remaining slots back to the character. */
-  syncFromCombat: (currentHP: number, spellSlots?: SpellSlotState) => void;
+  /** Write the player's post-combat HP, remaining slots, and bag back to the character. */
+  syncFromCombat: (
+    currentHP: number,
+    spellSlots?: SpellSlotState,
+    inventory?: { itemId: string; qty: number }[],
+  ) => void;
   resetCharacter: () => void;
   clearCharacter: () => void;
 }
@@ -96,12 +100,16 @@ export const useCharacterStore = create<CharacterState>()(
           if (!state.character) return;
           state.character = addItem(state.character, itemId, qty);
         }),
-      syncFromCombat: (currentHP, spellSlots) =>
+      syncFromCombat: (currentHP, spellSlots, inventory) =>
         set((state) => {
           if (!state.character) return;
           state.character.currentHP = Math.max(0, Math.min(state.character.maxHP, currentHP));
           if (spellSlots && state.character.spellSlots) {
             state.character.spellSlots = spellSlots;
+          }
+          // Persist potions consumed during the fight back to the bag.
+          if (inventory) {
+            state.character.inventory = inventory;
           }
         }),
       resetCharacter: () => {
