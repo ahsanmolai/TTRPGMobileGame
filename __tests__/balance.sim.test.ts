@@ -1,14 +1,17 @@
-// Auto-plays floors with naive policies to smoke-test that the campaign is
-// survivable after the multiattack/spell/ability changes. Prints a win-rate
-// table for manual FLOOR_TABLE tuning; assertion thresholds are deliberately
-// loose to stay non-flaky.
+// Auto-plays floors with naive policies (shop floor-appropriate gear, use
+// class abilities, cast/nuke, drink potions when critical) to smoke-test that
+// the campaign is survivable for a martial and a caster. Prints a win-rate
+// table for manual FLOOR_TABLE / price tuning; assertion thresholds are
+// deliberately loose to stay non-flaky.
 import { buildCharacter, applyLevelUp, applyShortRest, CharacterBuild } from 'src/engine/leveling';
-import { CharacterStats, SpellSlotState } from 'src/engine/character';
+import { CharacterStats, SpellSlotState, calculateAC } from 'src/engine/character';
 import { ClassId } from 'src/data/classes';
 import { buildFloorEncounters } from 'src/data/floors';
 import { currentActor } from 'src/engine/combat';
 import { getClassAbility } from 'src/engine/classAbilities';
 import { getSpell, SpellDefinition } from 'src/data/spellbook';
+import { buildShopStock, getItem, ItemDef } from 'src/data/items';
+import { buyItem, equipItem, canEquip, addItem } from 'src/engine/inventory';
 import { useCombatStore } from 'src/store/combatStore';
 
 jest.setTimeout(120000);
@@ -37,6 +40,62 @@ function makeCharacter(classId: ClassId, level: number): CharacterStats {
   return c;
 }
 
+function totalPotions(c: CharacterStats): number {
+  return c.inventory.reduce((sum, e) => {
+    const it = getItem(e.itemId);
+    return it.kind === 'potion' ? sum + e.qty : sum;
+  }, 0);
+}
+
+/**
+ * Model a player who has earned and spent gold up to this floor: grant a
+ * floor-scaled budget, then buy + equip the best affordable armor (by
+ * resulting AC), the best magic upgrade of the current weapon, a protection
+ * trinket, and stock up to four potions. This is what closes the caster AC
+ * gap (robes/ring) the bare sim exposed.
+ */
+function shopForFloor(char: CharacterStats, floor: number): CharacterStats {
+  let c: CharacterStats = { ...char, gold: char.gold + floor * 160, inventory: [...char.inventory] };
+  const stock = buildShopStock(floor).map((s) => getItem(s.itemId));
+
+  // Best armor: highest resulting AC among proficient, affordable choices.
+  let bestArmor: ItemDef | null = null;
+  let bestAC = calculateAC(c);
+  for (const it of stock) {
+    if (it.kind !== 'armor' || it.price > c.gold || !canEquip(c, it.id).ok) continue;
+    const test = equipItem(addItem(c, it.id), it.id);
+    if (calculateAC(test) > bestAC) {
+      bestArmor = it;
+      bestAC = calculateAC(test);
+    }
+  }
+  if (bestArmor) c = equipItem(buyItem(c, bestArmor.id), bestArmor.id);
+
+  // Best magic upgrade of the current weapon type (same base id family).
+  const weaponUpgrades = stock
+    .filter((it) => it.kind === 'weapon' && it.id.startsWith(`${char.mainHand.id}_plus_`) && it.price <= c.gold)
+    .sort((a, b) => (b.weapon?.magicBonus ?? 0) - (a.weapon?.magicBonus ?? 0));
+  if (weaponUpgrades[0]) c = equipItem(buyItem(c, weaponUpgrades[0].id), weaponUpgrades[0].id);
+
+  // Protection trinket: ring of protection stacks with armor; affordable + equippable.
+  const ring = stock.find((it) => it.kind === 'trinket' && it.acBonus && it.price <= c.gold && canEquip(c, it.id).ok);
+  if (ring) c = equipItem(buyItem(c, ring.id), ring.id);
+
+  // Stock potions to 4 of the best affordable tier.
+  const potionTiers = stock
+    .filter((it) => it.kind === 'potion')
+    .sort((a, b) => b.minFloor - a.minFloor);
+  let guard = 0;
+  while (totalPotions(c) < 4 && guard++ < 20) {
+    const buy = potionTiers.find((it) => it.price <= c.gold);
+    if (!buy) break;
+    const next = buyItem(c, buy.id);
+    if (next === c) break; // couldn't afford
+    c = next;
+  }
+  return c;
+}
+
 function hasSlot(slots: SpellSlotState | undefined, level: number, cap = 9): boolean {
   if (!slots) return false;
   for (let lvl = level; lvl <= cap; lvl++) {
@@ -58,6 +117,17 @@ function playPlayerTurn(character: CharacterStats, isBossFight: boolean) {
   const liveEnemies = () => get()!.participants.filter((p) => !p.isPlayer && p.currentHP > 0);
 
   let actor = currentActor(get()!)!;
+  // Emergency potion: drink when critically hurt and the bonus action is free.
+  if (
+    actor.currentHP < actor.maxHP * 0.35 &&
+    !actor.actionsUsed.includes('bonus_action') &&
+    actor.playerStats &&
+    totalPotions(actor.playerStats) > 0
+  ) {
+    store.getState().playerUsePotion();
+    if (!get() || get()!.phase !== 'in_progress') return;
+    actor = currentActor(get()!)!;
+  }
   const ability = getClassAbility(character.classId, character.level);
   if (ability && !actor.actionsUsed.includes('bonus_action')) {
     if (ability.id === 'second_wind') {
@@ -149,6 +219,8 @@ function playFight(character: CharacterStats, enemyIds: string[], isBossFight: b
     ...character,
     currentHP: Math.max(0, Math.min(character.maxHP, playerP.currentHP)),
     ...(playerP.spellSlots ? { spellSlots: playerP.spellSlots } : {}),
+    // carry consumed potions forward across the floor's fights
+    ...(playerP.playerStats ? { inventory: playerP.playerStats.inventory } : {}),
   };
   store.getState().clearCombat();
   return { won, char };
@@ -163,7 +235,7 @@ interface FloorStats {
 }
 
 function simulateFloor(classId: ClassId, floor: number, stats: FloorStats) {
-  let char = makeCharacter(classId, floor);
+  let char = shopForFloor(makeCharacter(classId, floor), floor);
   const encounters = buildFloorEncounters(floor);
   for (let i = 0; i < encounters.length; i++) {
     const enc = encounters[i];
@@ -182,28 +254,27 @@ describe('balance smoke simulation', () => {
   it('floors 1/5/10/15/20 are survivable for a martial and a caster', () => {
     const rows: string[] = [];
     for (const classId of CLASSES_UNDER_TEST) {
+      let totalCleared = 0;
       for (const floor of FLOORS) {
         const stats: FloorStats = { trashWins: 0, trashFights: 0, bossWins: 0, bossFights: 0, floorsCleared: 0 };
         for (let t = 0; t < TRIALS; t++) simulateFloor(classId, floor, stats);
         const trashRate = stats.trashFights ? stats.trashWins / stats.trashFights : 0;
         const bossRate = stats.bossFights ? stats.bossWins / stats.bossFights : 0;
         const clearRate = stats.floorsCleared / TRIALS;
+        totalCleared += stats.floorsCleared;
         rows.push(
           `${classId.padEnd(8)} floor ${String(floor).padStart(2)}: trash ${(trashRate * 100).toFixed(0).padStart(3)}% (${stats.trashWins}/${stats.trashFights})  boss ${(bossRate * 100).toFixed(0).padStart(3)}% (${stats.bossWins}/${stats.bossFights})  floor cleared ${(clearRate * 100).toFixed(0)}%`,
         );
-        // Loose, anti-flake regression guards with margin below observed means
-        // (floor 20 clears ~20% pre-loot, so the bar sits at 0.1 to avoid
-        // boundary flake on a bad RNG seed) — the printed table is the real
-        // deliverable. The martial holds the floor-clear bar; the caster
-        // (AC 12, no defensive layer until this loot milestone lands) is
-        // asserted on trash survivability only.
-        if (classId === 'fighter') {
-          expect(trashRate).toBeGreaterThanOrEqual(0.5);
-          expect(clearRate).toBeGreaterThanOrEqual(0.1);
-        } else {
-          expect(trashRate).toBeGreaterThanOrEqual(0.3);
-        }
+        // Per-cell guard: trash survivability is high and stable across seeds.
+        expect(trashRate).toBeGreaterThanOrEqual(classId === 'fighter' ? 0.6 : 0.5);
       }
+      // Aggregate floor-clear guard across all sampled floors (tight variance
+      // over many trials). With the loot economy the simulated player shops
+      // floor-appropriate gear, closing the caster AC gap: the wizard now
+      // sustains real clears, earning an assertion impossible at the bare
+      // AC-12 baseline (~0-5%). The printed table is the real deliverable.
+      const aggregateClear = totalCleared / (FLOORS.length * TRIALS);
+      expect(aggregateClear).toBeGreaterThanOrEqual(classId === 'fighter' ? 0.45 : 0.15);
     }
     // eslint-disable-next-line no-console
     console.log('\n=== Balance smoke sim ===\n' + rows.join('\n') + '\n');
