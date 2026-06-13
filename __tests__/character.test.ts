@@ -35,6 +35,8 @@ function makeCharacter(overrides: Partial<CharacterStats> = {}): CharacterStats 
     mainHand: WEAPONS.longsword,
     classFeatures: [],
     attacksPerAction: 1,
+    gold: 0,
+    inventory: [],
   };
   return { ...base, ...overrides };
 }

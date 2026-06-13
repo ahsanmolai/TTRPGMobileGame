@@ -279,6 +279,8 @@ describe('combat.makePlayerParticipant + makeEnemyParticipant', () => {
       mainHand: WEAPONS.shortsword,
       classFeatures: ['sneak_attack'],
       attacksPerAction: 1,
+      gold: 0,
+      inventory: [],
     };
     const p = makePlayerParticipant(char);
     expect(p.isPlayer).toBe(true);
@@ -419,6 +421,8 @@ describe('combat.extra attack', () => {
       mainHand: WEAPONS.longsword,
       classFeatures: [],
       attacksPerAction,
+      gold: 0,
+      inventory: [],
     };
   }
 

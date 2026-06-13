@@ -1,6 +1,7 @@
 import { WeaponData, WeaponCategory } from 'src/data/weapons';
 import { SpellId } from 'src/data/spellbook';
 import { ClassId, CLASSES } from 'src/data/classes';
+import { getItem } from 'src/data/items';
 export type { ClassId };
 
 export type RaceId = 'human' | 'elf' | 'dwarf' | 'halfling' | 'half-orc';
@@ -22,7 +23,7 @@ export interface AbilityScores {
   charisma: number;
 }
 
-export type ArmorCategory = 'light' | 'medium' | 'heavy';
+export type ArmorCategory = 'light' | 'medium' | 'heavy' | 'arcane';
 
 export interface ArmorData {
   id: string;
@@ -52,6 +53,12 @@ export interface CharacterStats {
   classFeatures: ClassFeatureId[];
   /** Weapon attacks allowed per action (Extra Attack). */
   attacksPerAction: number;
+  gold: number;
+  inventory: { itemId: string; qty: number }[];
+  /** Equipped trinket item id (one slot), or null/undefined when none. */
+  trinketId?: string | null;
+  /** AC bonus granted by the equipped shield (defaults to 2 when shield true). */
+  shieldBonus?: number;
   portrait?: string;
   spellcastingAbility?: AbilityName;
   spellSlots?: SpellSlotState;
@@ -104,8 +111,13 @@ export function calculateAC(character: CharacterStats): number {
     const effectiveDex = cap === null ? dexMod : Math.min(dexMod, cap);
     ac = character.armor.baseAC + effectiveDex;
   }
-  if (character.shield) ac += 2;
+  if (character.shield) ac += character.shieldBonus ?? 2;
   if (character.classFeatures.includes('fighting_style_defense') && character.armor) ac += 1;
+  if (character.trinketId) {
+    const trinket = getItem(character.trinketId);
+    if (trinket.acBonus) ac += trinket.acBonus;
+    if (trinket.unarmoredACBonus && character.armor === null) ac += trinket.unarmoredACBonus;
+  }
   return ac;
 }
 
@@ -120,7 +132,7 @@ export function getAttackBonus(character: CharacterStats, weapon: WeaponData): n
   else abilityMod = strMod;
   const proficient = character.proficientWeapons.includes(weapon.category);
   const prof = proficient ? getProficiencyBonus(character.level) : 0;
-  return abilityMod + prof;
+  return abilityMod + prof + (weapon.magicBonus ?? 0);
 }
 
 export function getWeaponDamageAbilityMod(
@@ -131,9 +143,10 @@ export function getWeaponDamageAbilityMod(
   const isRanged = weapon.properties.includes('ranged');
   const strMod = getModifier(character.abilityScores.strength);
   const dexMod = getModifier(character.abilityScores.dexterity);
-  if (isRanged) return dexMod;
-  if (isFinesse) return Math.max(strMod, dexMod);
-  return strMod;
+  const magic = weapon.magicBonus ?? 0;
+  if (isRanged) return dexMod + magic;
+  if (isFinesse) return Math.max(strMod, dexMod) + magic;
+  return strMod + magic;
 }
 
 export function getSavingThrowBonus(
