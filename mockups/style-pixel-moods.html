@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeons n Dice — Pixel Mood Variants (light + dark)</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#0c0a12;color:#ece3ff;font-family:'Courier New',ui-monospace,monospace;padding:26px;}
+  h1{margin:0 0 4px} p.lead{color:#9a90c0;max-width:820px;margin:0 0 18px;line-height:1.5}
+  .toggle{display:inline-flex;gap:0;border:3px solid #000;margin-bottom:22px;box-shadow:inset -3px -3px 0 #0c0818, inset 3px 3px 0 #3a3157}
+  .toggle button{font-family:inherit;font-weight:700;text-transform:uppercase;letter-spacing:2px;
+    padding:10px 20px;border:none;cursor:pointer;background:#1c1730;color:#9a90c0}
+  .toggle button.on{background:#ffcf52;color:#1b1226}
+  .grid{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  canvas{image-rendering:pixelated;display:block}
+  .phone{width:330px;height:660px;border-radius:26px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+    border:3px solid #000;box-shadow:0 24px 60px rgba(0,0,0,.55);
+    background:
+      repeating-linear-gradient(0deg, var(--mortar) 0 2px, transparent 2px 24px),
+      repeating-linear-gradient(90deg, var(--mortar) 0 2px, transparent 2px 48px),
+      var(--wall);}
+  .moodcap{padding:9px;text-align:center;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    background:var(--win);color:var(--accent);border-bottom:3px solid #000;font-size:12px}
+  .combat{flex:1;display:flex;flex-direction:column;padding:10px 9px 9px}
+  .init{display:flex;gap:5px;justify-content:center;margin-bottom:6px}
+  .pip{font-size:9px;color:var(--dim);border:2px solid #000;padding:3px 6px;background:var(--panel);text-transform:uppercase;letter-spacing:1px}
+  .pip.on{color:var(--accentText);background:var(--accent);font-weight:700}
+  .scene{flex:1;position:relative;display:flex;align-items:flex-end;justify-content:center;gap:14px;padding-bottom:8px;min-height:190px}
+  .floor{position:absolute;left:6px;right:6px;bottom:5px;height:38px;
+    background:repeating-linear-gradient(90deg,var(--floor) 0 20px,var(--floor2) 20px 40px);
+    border-top:3px solid var(--accent);opacity:.85}
+  .unit{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:2}
+  .unit .name{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text)}
+  .hpbar{width:74px;height:8px;background:var(--hptrack);border:2px solid #000;overflow:hidden}
+  .hpbar i{display:block;height:100%;background:var(--crimson)}
+  .hpbar.good i{background:var(--hpgood)}
+  .hud{margin-top:5px;background:var(--win);border:3px solid var(--border);box-shadow:inset 0 0 0 2px #000}
+  .prow{display:flex;align-items:center;gap:8px;padding:7px 9px}
+  .pname{color:var(--accent);font-weight:700;font-size:11px;letter-spacing:1px}
+  .log{padding:7px 10px;font-size:10px;line-height:1.6;border-top:2px solid #000;min-height:52px;color:var(--text)}
+  .log .crit{color:var(--accent);font-weight:700} .log .dmg{color:var(--crimson)} .log .sys{color:var(--dim)}
+  .cmds{display:flex;gap:5px;padding:7px}
+  .cmd{flex:1;text-align:center;padding:9px 2px;font-size:10px;font-weight:700;text-transform:uppercase;
+    border:3px solid #000;color:var(--accentText)}
+  .cmd.atk{background:var(--crimson);box-shadow:inset -2px -2px 0 var(--crimsonD)}
+  .cmd.mag{background:var(--accent);color:var(--accentText);box-shadow:inset -2px -2px 0 var(--border)}
+  .cmd.pot{background:var(--hpgood);box-shadow:inset -2px -2px 0 #0006}
+  .note{color:#6b6488;font-size:12px;margin-top:18px;max-width:820px;line-height:1.5}
+</style>
+</head>
+<body>
+  <h1>Dungeons n Dice — Pixel Mood Variants</h1>
+  <p class="lead">Same pixel-art style and sprites; three environment moods, each with a full light &amp; dark palette. Flip the switch to compare modes. The creatures keep their identity colors (green goblin, red dragon); the <b>mood</b> reskins the dungeon, window chrome, and accents — exactly how the in-app theme system will work (mood × mode).</p>
+  <div class="toggle">
+    <button id="b-dark" class="on" onclick="setMode('dark')">Dark mode</button>
+    <button id="b-light" onclick="setMode('light')">Light mode</button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <p class="note">In the app these become a runtime <b>Light/Dark toggle</b> plus a selectable <b>mood</b> (Settings). Pick the mood you want as the default — all three ship behind the same theme system.</p>
+
+<script>
+// ---------- palettes: mood -> {dark, light} ----------
+const MOODS = {
+  torch:{name:'Torchlit Halls',
+    dark :{wall:'linear-gradient(180deg,#332618,#241a0e)',mortar:'#15100a',floor:'#4a3a22',floor2:'#3f3119',panel:'#1d160e',win:'#140f08',border:'#c79a23',accent:'#ffcf52',accentText:'#1b1206',crimson:'#b3424f',crimsonD:'#7d2a36',text:'#f0e6d0',dim:'#b09a70',hptrack:'#15100a',hpgood:'#7fcf5a'},
+    light:{wall:'linear-gradient(180deg,#e6d2a6,#d2bb8a)',mortar:'#a88f60',floor:'#c9b487',floor2:'#bfa877',panel:'#efe3c8',win:'#f6ecd6',border:'#8a6b2f',accent:'#c2902a',accentText:'#fff3d0',crimson:'#a83a48',crimsonD:'#7d2a36',text:'#2a2012',dim:'#6b5836',hptrack:'#cdba90',hpgood:'#3f8f3a'}},
+  frost:{name:'Frostbound Crypt',
+    dark :{wall:'linear-gradient(180deg,#202b3e,#161f2e)',mortar:'#0e141f',floor:'#2f4055',floor2:'#27384c',panel:'#14202e',win:'#0e1822',border:'#4f8cff',accent:'#8fd0ff',accentText:'#0a1622',crimson:'#c2566e',crimsonD:'#7d2a44',text:'#e6f0ff',dim:'#8aa0c0',hptrack:'#0e141f',hpgood:'#5fd3c0'},
+    light:{wall:'linear-gradient(180deg,#dcebf8,#c4d8ec)',mortar:'#9fb8d0',floor:'#b8d0e6',floor2:'#aac6e0',panel:'#eef6ff',win:'#f4faff',border:'#3a6fb0',accent:'#2f6fb0',accentText:'#eaf4ff',crimson:'#b34a64',crimsonD:'#7d2a44',text:'#14202e',dim:'#4a6486',hptrack:'#bcd2e8',hpgood:'#2f8f8a'}},
+  cursed:{name:'Cursed Hollow',
+    dark :{wall:'linear-gradient(180deg,#271f36,#1a1426)',mortar:'#100a18',floor:'#2a3a28',floor2:'#22301f',panel:'#1a142a',win:'#120c1e',border:'#8a4fd0',accent:'#7ee36a',accentText:'#0e1a0a',crimson:'#b3486e',crimsonD:'#7d2a4a',text:'#e8ffe0',dim:'#9a90b0',hptrack:'#100a18',hpgood:'#7ee36a'},
+    light:{wall:'linear-gradient(180deg,#d4dcbc,#bdc99c)',mortar:'#98a878',floor:'#b0c090',floor2:'#a6b884',panel:'#e8f0d8',win:'#f0f6e2',border:'#6b3fa0',accent:'#4a8f3a',accentText:'#f0ffe0',crimson:'#a83a5e',crimsonD:'#7d2a4a',text:'#1a2410',dim:'#5a6a48',hptrack:'#c0cca0',hpgood:'#4a8f3a'}}
+};
+// ---------- pixel sprite helpers (creature colors are mood-independent) ----------
+const C={out:'#0e0a18',steel:'#aeb7c9',steelL:'#e2e8f5',skin:'#e0a878',beard:'#d27a36',
+  arm:'#3f6bd0',armL:'#5b8cff',gold:'#ffcf52',goldD:'#c79a23',wood:'#7a4a22',
+  gob:'#4fb06a',gobD:'#2f8f55',gobDk:'#1f6b3d',red:'#d24a5e',redL:'#ff7184',redD:'#7d2a36',
+  bone:'#e9dcc0',glass:'#7fd0c0',pot:'#e15a6a',white:'#fff'};
+function setup(cv,lw,lh){const s=Math.floor(cv.width/lw);const x=cv.getContext('2d');x.imageSmoothingEnabled=false;x.scale(s,s);x.clearRect(0,0,lw,lh);return x;}
+const PX=(c,x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h);};
+function drawDwarf(c){PX(c,3,14,6,9,C.goldD);PX(c,4,15,4,7,C.gold);PX(c,5,17,2,3,C.goldD);
+  PX(c,25,7,2,16,C.wood);PX(c,22,7,5,2,C.steelL);PX(c,22,9,6,3,C.steel);
+  PX(c,9,13,14,10,C.out);PX(c,10,13,12,9,C.arm);PX(c,12,14,8,5,C.armL);
+  PX(c,11,23,4,4,C.out);PX(c,17,23,4,4,C.out);
+  PX(c,11,3,10,2,C.steel);PX(c,10,5,12,2,C.steelL);PX(c,9,5,1,2,C.out);PX(c,22,5,1,2,C.out);PX(c,15,1,2,2,C.gold);
+  PX(c,11,7,10,4,C.skin);PX(c,10,7,1,4,C.out);PX(c,21,7,1,4,C.out);PX(c,13,8,2,2,C.out);PX(c,17,8,2,2,C.out);
+  PX(c,11,11,10,2,C.beard);PX(c,12,13,8,2,C.beard);PX(c,13,15,6,2,C.beard);PX(c,14,17,4,1,C.beard);}
+function drawGoblin(c){PX(c,3,7,5,2,C.gobD);PX(c,5,9,3,2,C.gob);PX(c,24,7,5,2,C.gobD);PX(c,24,9,3,2,C.gob);
+  PX(c,11,17,10,8,C.gobDk);PX(c,12,18,8,5,C.gobD);
+  PX(c,10,8,12,9,C.out);PX(c,11,9,10,7,C.gob);PX(c,11,8,10,1,C.gob);PX(c,11,16,10,1,C.gob);
+  PX(c,12,11,3,2,C.redL);PX(c,13,11,1,2,C.out);PX(c,17,11,3,2,C.redL);PX(c,18,11,1,2,C.out);
+  PX(c,12,15,8,1,C.out);PX(c,13,14,1,1,C.bone);PX(c,16,14,1,1,C.bone);PX(c,18,14,1,1,C.bone);
+  PX(c,24,11,2,8,C.steelL);PX(c,23,18,4,2,C.wood);PX(c,11,25,3,2,C.out);PX(c,18,25,3,2,C.out);}
+function drawDragon(c){for(let i=0;i<5;i++)PX(c,2+i*2,4+i*2,8,2,C.redD);for(let i=0;i<5;i++)PX(c,30-i*2,4+i*2,8,2,C.redD);
+  PX(c,6,24,8,2,C.red);PX(c,10,22,8,2,C.red);PX(c,4,25,3,2,C.redD);
+  PX(c,15,11,11,11,C.out);PX(c,16,12,9,9,C.red);PX(c,18,13,5,5,C.redL);
+  PX(c,16,22,3,4,C.redD);PX(c,22,22,3,4,C.redD);
+  PX(c,24,7,4,7,C.red);PX(c,26,3,9,6,C.out);PX(c,27,4,8,4,C.redL);PX(c,34,5,4,3,C.red);
+  PX(c,27,1,2,2,C.bone);PX(c,31,1,2,2,C.bone);PX(c,30,5,2,2,C.gold);PX(c,37,6,1,1,C.out);
+  PX(c,17,10,1,1,C.bone);PX(c,20,10,1,1,C.bone);PX(c,23,10,1,1,C.bone);}
+function drawPotion(c){PX(c,6,1,4,2,C.wood);PX(c,6,3,4,3,C.glass);
+  PX(c,3,6,10,1,C.out);PX(c,2,7,12,9,C.out);PX(c,3,16,10,1,C.out);
+  PX(c,4,7,8,2,C.glass);PX(c,4,9,8,6,C.pot);PX(c,5,8,1,6,C.white);}
+
+// ---------- build the three phones ----------
+const phoneHTML = (m)=>`
+  <div class="moodcap">${MOODS[m].name}</div>
+  <div class="combat">
+    <div class="init"><span class="pip on">Thorin 18</span><span class="pip">Dragon 14</span><span class="pip">Goblin 9</span></div>
+    <div class="scene"><div class="floor"></div>
+      <div class="unit"><canvas id="gob-${m}" width="112" height="112"></canvas><div class="name">Goblin</div><div class="hpbar"><i style="width:60%"></i></div></div>
+      <div class="unit"><canvas id="dra-${m}" width="160" height="128"></canvas><div class="name">Ancient Dragon</div><div class="hpbar"><i style="width:82%"></i></div></div>
+    </div>
+    <div class="hud">
+      <div class="prow"><canvas id="dwa-${m}" width="84" height="84"></canvas>
+        <div style="flex:1"><div class="pname">Thorin · Lv 7</div><div class="hpbar good" style="width:130px;margin-top:5px"><i style="width:74%"></i></div></div>
+        <canvas id="pot-${m}" width="40" height="50"></canvas>
+        <div style="font-size:9px;color:var(--dim);text-align:right">AC 19<br>🪙340</div>
+      </div>
+      <div class="log"><div><span class="crit">★ NAT 20!</span> Thorin crits the Dragon.</div><div><span class="dmg">-27 slashing</span> (Dragon 82/240)</div><div class="sys">The Goblin readies its blade…</div></div>
+      <div class="cmds"><div class="cmd atk">⚔ Atk</div><div class="cmd mag">✦ Spell</div><div class="cmd pot">🧪×3</div></div>
+    </div>
+  </div>`;
+
+const grid=document.getElementById('grid');
+const moods=Object.keys(MOODS);
+grid.innerHTML = moods.map(m=>`<div class="phone" id="phone-${m}">${phoneHTML(m)}</div>`).join('');
+moods.forEach(m=>{
+  drawGoblin(setup(document.getElementById('gob-'+m),32,32));
+  drawDragon(setup(document.getElementById('dra-'+m),40,32));
+  drawDwarf (setup(document.getElementById('dwa-'+m),32,32));
+  drawPotion(setup(document.getElementById('pot-'+m),16,20));
+});
+
+let mode='dark';
+function applyVars(el,p){for(const k in p) el.style.setProperty('--'+k,p[k]);}
+function setMode(md){
+  mode=md;
+  document.getElementById('b-dark').classList.toggle('on',md==='dark');
+  document.getElementById('b-light').classList.toggle('on',md==='light');
+  moods.forEach(m=>applyVars(document.getElementById('phone-'+m),MOODS[m][md]));
+}
+setMode('dark');
+</script>
+</body>
+</html>
