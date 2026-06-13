@@ -2,6 +2,8 @@ import { useCampaignStore } from 'src/store/campaignStore';
 import { useCharacterStore } from 'src/store/characterStore';
 import { buildCharacter } from 'src/engine/leveling';
 import { FIGHTS_PER_FLOOR } from 'src/data/floors';
+import { getItem } from 'src/data/items';
+import { CharacterStats } from 'src/engine/character';
 
 function freshDwarfFighter() {
   return buildCharacter({
@@ -111,5 +113,86 @@ describe('campaignStore', () => {
     await useCampaignStore.persist.rehydrate();
     expect(useCampaignStore.getState().run).toEqual(before);
     expect(useCampaignStore.getState().run!.fightIndex).toBe(1);
+  });
+
+  it('a fight victory credits gold to the character', () => {
+    useCharacterStore.getState().setCharacter(freshDwarfFighter());
+    useCampaignStore.getState().startRun();
+    const goldBefore = useCharacterStore.getState().character!.gold;
+
+    const result = useCampaignStore.getState().recordFightVictory()!;
+    expect(result.goldGained).toBeGreaterThan(0);
+    expect(useCharacterStore.getState().character!.gold).toBe(goldBefore + result.goldGained);
+  });
+
+  it('a fight victory that rolls a drop adds the item to the bag', () => {
+    useCharacterStore.getState().setCharacter(freshDwarfFighter());
+    useCampaignStore.getState().startRun();
+    // Force the trash drop branch (rollDrop draws Math.random() < 0.2 for trash).
+    const spy = jest.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = useCampaignStore.getState().recordFightVictory()!;
+      expect(result.droppedItemId).toBeDefined();
+      const dropped = result.droppedItemId!;
+      expect(() => getItem(dropped)).not.toThrow();
+      const bag = useCharacterStore.getState().character!.inventory;
+      const entry = bag.find((e) => e.itemId === dropped);
+      expect(entry).toBeDefined();
+      expect(entry!.qty).toBeGreaterThan(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('the run shopStock survives a persist -> rehydrate round trip', async () => {
+    useCharacterStore.getState().setCharacter(freshDwarfFighter());
+    useCampaignStore.getState().startRun();
+    const stockBefore = useCampaignStore.getState().run!.shopStock;
+    expect(stockBefore.length).toBeGreaterThan(0);
+    await new Promise((r) => setTimeout(r, 0)); // flush the async setItem
+
+    await useCampaignStore.persist.rehydrate();
+    expect(useCampaignStore.getState().run!.shopStock).toEqual(stockBefore);
+  });
+});
+
+describe('store migrations v1 -> v2', () => {
+  it('characterStore backfills gold/inventory/trinketId for a legacy character', () => {
+    const migrate = useCharacterStore.persist.getOptions().migrate!;
+    // A v1 blob: a character with none of the economy fields.
+    const legacy = {
+      character: { id: 'old', name: 'Old', classId: 'wizard' } as Partial<CharacterStats>,
+      selectedPresetId: null,
+    };
+    const migrated = migrate(legacy, 1) as { character: CharacterStats };
+    expect(migrated.character.gold).toBe(0);
+    expect(migrated.character.inventory).toEqual([]);
+    expect(migrated.character.trinketId).toBeNull();
+  });
+
+  it('characterStore migration is a no-op when there is no persisted character', () => {
+    const migrate = useCharacterStore.persist.getOptions().migrate!;
+    const migrated = migrate({ character: null, selectedPresetId: null }, 1) as {
+      character: CharacterStats | null;
+    };
+    expect(migrated.character).toBeNull();
+  });
+
+  it('campaignStore backfills shopStock for the run floor on a legacy run', () => {
+    const migrate = useCampaignStore.persist.getOptions().migrate!;
+    // A v1 run blob lacking shopStock, mid-tower.
+    const legacy = { run: { floor: 5, fightIndex: 2, status: 'active' } };
+    const migrated = migrate(legacy, 1) as { run: { floor: number; shopStock: { itemId: string }[] } };
+    expect(Array.isArray(migrated.run.shopStock)).toBe(true);
+    expect(migrated.run.shopStock.length).toBeGreaterThan(0);
+    for (const { itemId } of migrated.run.shopStock) {
+      expect(getItem(itemId).minFloor).toBeLessThanOrEqual(migrated.run.floor + 1);
+    }
+  });
+
+  it('campaignStore migration is a no-op when there is no persisted run', () => {
+    const migrate = useCampaignStore.persist.getOptions().migrate!;
+    const migrated = migrate({ run: null }, 1) as { run: unknown };
+    expect(migrated.run).toBeNull();
   });
 });

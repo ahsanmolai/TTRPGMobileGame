@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CharacterStats, SpellSlotState } from 'src/engine/character';
 import { Condition } from 'src/engine/combat';
 import { applyLevelUp, applyLongRest, applyShortRest } from 'src/engine/leveling';
+import { addItem } from 'src/engine/inventory';
 import { getPreset } from 'src/data/presetCharacters';
 
 interface CharacterState {
@@ -21,6 +22,10 @@ interface CharacterState {
   levelUp: () => void;
   shortRest: () => void;
   longRest: () => void;
+  /** Credit gold from a fight reward. No-op without a character. */
+  gainGold: (amount: number) => void;
+  /** Add a dropped/bought item to the bag. No-op without a character. */
+  gainItem: (itemId: string, qty?: number) => void;
   /** Write the player's post-combat HP and remaining slots back to the character. */
   syncFromCombat: (currentHP: number, spellSlots?: SpellSlotState) => void;
   resetCharacter: () => void;
@@ -81,6 +86,16 @@ export const useCharacterStore = create<CharacterState>()(
           if (!state.character) return;
           state.character = applyLongRest(state.character);
         }),
+      gainGold: (amount) =>
+        set((state) => {
+          if (!state.character) return;
+          state.character.gold += amount;
+        }),
+      gainItem: (itemId, qty = 1) =>
+        set((state) => {
+          if (!state.character) return;
+          state.character = addItem(state.character, itemId, qty);
+        }),
       syncFromCombat: (currentHP, spellSlots) =>
         set((state) => {
           if (!state.character) return;
@@ -105,13 +120,25 @@ export const useCharacterStore = create<CharacterState>()(
     })),
     {
       name: 'ttrpg-character',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) =>
         ({
           character: state.character,
           selectedPresetId: state.selectedPresetId,
         }) as CharacterState,
+      // v1 predates the economy fields; backfill gold/inventory/trinketId so a
+      // legacy character satisfies the now-required CharacterStats shape.
+      migrate: (persistedState) => {
+        const state = persistedState as CharacterState;
+        const character = state?.character as Partial<CharacterStats> | null | undefined;
+        if (character) {
+          if (typeof character.gold !== 'number') character.gold = 0;
+          if (!Array.isArray(character.inventory)) character.inventory = [];
+          if (character.trinketId === undefined) character.trinketId = null;
+        }
+        return state;
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

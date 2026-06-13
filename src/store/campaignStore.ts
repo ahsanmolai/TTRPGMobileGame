@@ -11,6 +11,7 @@ import {
   recordVictory,
 } from 'src/engine/campaign';
 import { FloorEncounter } from 'src/data/floors';
+import { buildShopStock } from 'src/data/items';
 import { useCharacterStore } from 'src/store/characterStore';
 import { CharacterStats } from 'src/engine/character';
 
@@ -81,6 +82,11 @@ export const useCampaignStore = create<CampaignState>()(
         } else {
           characterStore.shortRest();
         }
+        // Apply the fight's economy rewards after any rest (gold/drops survive
+        // the rest's HP/slot reset). Read a fresh handle in case rest swapped state.
+        const rewards = useCharacterStore.getState();
+        rewards.gainGold(result.goldGained);
+        if (result.droppedItemId) rewards.gainItem(result.droppedItemId);
         return result;
       },
       recordDefeat: () =>
@@ -96,10 +102,19 @@ export const useCampaignStore = create<CampaignState>()(
     })),
     {
       name: 'ttrpg-campaign',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ run: state.run }) as CampaignState,
-      migrate: (persistedState) => persistedState as CampaignState,
+      // v1 runs predate shopStock; backfill the current floor's merchant
+      // inventory so the in-flight run has a stocked shop after rehydrate.
+      migrate: (persistedState) => {
+        const state = persistedState as CampaignState;
+        const run = state?.run as (CampaignRun & { shopStock?: unknown }) | null | undefined;
+        if (run && !Array.isArray(run.shopStock)) {
+          run.shopStock = buildShopStock(run.floor);
+        }
+        return state;
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
