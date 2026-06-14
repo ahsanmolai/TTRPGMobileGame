@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeons n Dice — Style 4: Pixel Dungeon (16-bit)</title>
+<style>
+  :root{
+    --stone:#241d33; --stone2:#2f2747; --brick:#3a3157; --mortar:#1a1528;
+    --gold:#ffcf52; --gold-d:#c79a23; --crimson:#b3424f; --crimson-d:#7d2a36;
+    --text:#ece3ff; --dim:#9a90c0; --green:#5fd37a; --edge:#0e0a18;
+    --panel:#1c1730; --win:#161122;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#100c1a;color:var(--text);padding:28px;
+    font-family:'Courier New',ui-monospace,monospace;}
+  h1.page{margin:0 0 4px;font-weight:800;letter-spacing:1px}
+  p.page{color:var(--dim);margin:0 0 24px;max-width:780px;line-height:1.5}
+  .stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:360px;height:740px;border-radius:30px;overflow:hidden;position:relative;
+    display:flex;flex-direction:column;border:3px solid #000;
+    box-shadow:0 30px 70px rgba(0,0,0,.6);
+    background:
+      /* brick wall */
+      repeating-linear-gradient(0deg, var(--mortar) 0 2px, transparent 2px 26px),
+      repeating-linear-gradient(90deg, var(--mortar) 0 2px, transparent 2px 52px),
+      linear-gradient(180deg,#332a4e 0%, #271f3c 55%, #1c1730 100%);
+    background-blend-mode:normal;
+    image-rendering:pixelated;}
+  .cap{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;z-index:5}
+  canvas{image-rendering:pixelated;display:block}
+  /* shared pixel panel/window */
+  .win{background:var(--win);border:3px solid var(--gold-d);
+    box-shadow:inset 0 0 0 2px #000, inset 0 0 0 5px var(--gold-d);}
+  .pbtn{font-family:inherit;font-weight:700;letter-spacing:1px;color:var(--text);
+    background:var(--panel);border:3px solid #000;box-shadow:inset -3px -3px 0 #0c0818, inset 3px 3px 0 #3a3157;
+    text-transform:uppercase}
+  /* ---- TITLE ---- */
+  .title-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:22px}
+  .menu{display:flex;flex-direction:column;gap:14px;width:100%;margin-top:6px}
+  .menu .pbtn{padding:15px;text-align:center;font-size:13px}
+  .menu .pbtn.go{color:#1b1226;background:var(--gold);box-shadow:inset -3px -3px 0 var(--gold-d), inset 3px 3px 0 #ffe49a}
+  .tagline{color:var(--dim);letter-spacing:4px;font-size:11px;text-transform:uppercase}
+  .foot{color:var(--dim);font-size:10px;letter-spacing:2px;padding:12px;text-align:center}
+  /* ---- COMBAT ---- */
+  .combat{flex:1;display:flex;flex-direction:column;padding:26px 10px 10px}
+  .init{display:flex;gap:5px;justify-content:center;margin-bottom:6px;z-index:3}
+  .pip{font-size:9px;color:var(--dim);border:2px solid #000;padding:3px 6px;background:var(--panel);text-transform:uppercase;letter-spacing:1px}
+  .pip.on{color:#1b1226;background:var(--gold);font-weight:700}
+  .scene{flex:1;position:relative;display:flex;align-items:flex-end;justify-content:center;gap:18px;padding-bottom:8px;min-height:230px}
+  .floor{position:absolute;left:8px;right:8px;bottom:6px;height:46px;
+    background:repeating-linear-gradient(90deg,#4a3f6e 0 22px,#3f3560 22px 44px);
+    border-top:3px solid #5a4e82;opacity:.9}
+  .unit{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;z-index:2}
+  .unit .name{font-size:10px;letter-spacing:1px;text-transform:uppercase}
+  .hpbar{width:80px;height:9px;background:#1a1528;border:2px solid #000;overflow:hidden}
+  .hpbar i{display:block;height:100%;background:var(--crimson)}
+  .hpbar.good i{background:var(--green)}
+  /* bottom command/log window */
+  .hud{margin-top:6px}
+  .prow{display:flex;align-items:center;gap:8px;padding:8px 10px}
+  .pname{color:var(--gold);font-weight:700;font-size:12px;letter-spacing:1px}
+  .log{padding:8px 12px;font-size:11px;line-height:1.6;border-top:2px solid #000;min-height:62px}
+  .log .crit{color:var(--gold);font-weight:700}
+  .log .dmg{color:#ff8a98}
+  .log .sys{color:var(--dim)}
+  .cmds{display:flex;gap:6px;padding:8px}
+  .cmd{flex:1;text-align:center;padding:11px 2px;font-size:11px}
+  .cmd.atk{color:#1b1226;background:var(--crimson);box-shadow:inset -3px -3px 0 var(--crimson-d), inset 3px 3px 0 #d06676}
+  .cmd.mag{color:#1b1226;background:#5e7fd0;box-shadow:inset -3px -3px 0 #38528f, inset 3px 3px 0 #8aa6ef}
+  .cmd.pot{color:#1b1226;background:var(--green);box-shadow:inset -3px -3px 0 #2f8f55, inset 3px 3px 0 #9af0b4}
+  /* dice overlay */
+  .diceover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(16,12,26,.82);pointer-events:none;z-index:8;gap:14px}
+  .diebob{animation:bob .6s steps(2) infinite}
+  .rolllabel{color:var(--gold);letter-spacing:3px;font-size:12px;text-transform:uppercase}
+  @keyframes bob{0%{transform:translateY(0)}50%{transform:translateY(-10px)}100%{transform:translateY(0)}}
+</style>
+</head>
+<body>
+  <h1 class="page">Dungeons n Dice — Style 4: <span style="color:#ffcf52">Pixel Dungeon</span> (16-bit)</h1>
+  <p class="page">A classic 16-bit JRPG dungeon-battle look: chunky pixel sprites on a torch-lit stone backdrop, a bordered command/message window at the bottom, a blocky bitmap logo, and a pixel d20 that tumbles in stepped frames. The most genre-native pairing for pixel art — every sprite, item, and the dice are drawn as real pixels (here on canvas; in-app as authored pixel grids).</p>
+  <div class="stage">
+
+    <!-- TITLE -->
+    <div class="phone">
+      <span class="cap">Title</span>
+      <div class="title-wrap">
+        <canvas id="t-die" width="150" height="150"></canvas>
+        <canvas id="t-logo" width="320" height="120"></canvas>
+        <div class="tagline">A d20 dungeon crawler</div>
+        <div class="menu">
+          <div class="pbtn go">Continue Run — Floor 7</div>
+          <div class="pbtn">New Campaign</div>
+        </div>
+      </div>
+      <div class="foot">v0.3 — The Living Dungeon</div>
+    </div>
+
+    <!-- COMBAT -->
+    <div class="phone">
+      <span class="cap">Combat</span>
+      <div class="combat">
+        <div class="init">
+          <span class="pip on">Thorin 18</span>
+          <span class="pip">Dragon 14</span>
+          <span class="pip">Goblin 9</span>
+        </div>
+
+        <div class="scene">
+          <div class="floor"></div>
+          <div class="unit">
+            <canvas id="c-goblin" width="128" height="128"></canvas>
+            <div class="name">Goblin</div>
+            <div class="hpbar"><i style="width:60%"></i></div>
+          </div>
+          <div class="unit">
+            <canvas id="c-dragon" width="180" height="144"></canvas>
+            <div class="name" style="color:#ff8a98">Ancient Dragon</div>
+            <div class="hpbar"><i style="width:82%"></i></div>
+          </div>
+        </div>
+
+        <div class="hud win">
+          <div class="prow">
+            <canvas id="c-dwarf" width="96" height="96"></canvas>
+            <div style="flex:1">
+              <div class="pname">Thorin · Lv 7 Fighter</div>
+              <div class="hpbar good" style="width:150px;margin-top:6px"><i style="width:74%"></i></div>
+            </div>
+            <canvas id="c-potion" width="48" height="60"></canvas>
+            <div style="font-size:10px;color:var(--dim);text-align:right">AC 19<br>🪙 340</div>
+          </div>
+          <div class="log">
+            <div><span class="crit">★ NAT 20!</span> Thorin crits the Dragon.</div>
+            <div><span class="dmg">-27 slashing</span> (Dragon 82/240)</div>
+            <div class="sys">The Goblin readies its blade…</div>
+          </div>
+          <div class="cmds">
+            <div class="cmd atk pbtn">⚔ Attack</div>
+            <div class="cmd mag pbtn">✦ Spells</div>
+            <div class="cmd pot pbtn">🧪×3</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="diceover">
+        <canvas id="c-die" class="diebob" width="150" height="150"></canvas>
+        <div class="rolllabel">▶ Rolling initiative…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ---- pixel canvas helper ----
+function setup(id, logicalW, logicalH){
+  const cv=document.getElementById(id); const scale=Math.floor(cv.width/logicalW);
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false; ctx.scale(scale,scale);
+  ctx.clearRect(0,0,logicalW,logicalH);
+  return {ctx, scale};
+}
+const PX=(ctx,x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h);};
+
+// palette
+const C={out:'#0e0a18', steel:'#aeb7c9', steelL:'#e2e8f5', skin:'#e0a878', beard:'#d27a36',
+  arm:'#3f6bd0', armL:'#5b8cff', gold:'#ffcf52', goldD:'#c79a23', wood:'#7a4a22',
+  gob:'#4fb06a', gobD:'#2f8f55', gobDk:'#1f6b3d', red:'#d24a5e', redL:'#ff7184', redD:'#7d2a36',
+  bone:'#e9dcc0', glass:'#7fd0c0', pot:'#e15a6a', white:'#fff'};
+
+// ---- DWARF FIGHTER (32x32) ----
+function drawDwarf(ctx){
+  // shield (viewer left)
+  PX(ctx,3,14,6,9,C.goldD); PX(ctx,4,15,4,7,C.gold); PX(ctx,5,17,2,3,C.goldD);
+  // axe (viewer right)
+  PX(ctx,25,7,2,16,C.wood); PX(ctx,22,7,5,2,C.steelL); PX(ctx,22,9,6,3,C.steel); PX(ctx,24,12,3,1,C.steel);
+  // body armor
+  PX(ctx,9,13,14,10,C.out); PX(ctx,10,13,12,9,C.arm); PX(ctx,12,14,8,5,C.armL);
+  // legs/boots
+  PX(ctx,11,23,4,4,C.out); PX(ctx,17,23,4,4,C.out);
+  // helmet
+  PX(ctx,11,3,10,2,C.steel); PX(ctx,10,5,12,2,C.steelL); PX(ctx,9,5,1,2,C.out); PX(ctx,22,5,1,2,C.out);
+  PX(ctx,15,1,2,2,C.gold);
+  // face
+  PX(ctx,11,7,10,4,C.skin); PX(ctx,10,7,1,4,C.out); PX(ctx,21,7,1,4,C.out);
+  PX(ctx,13,8,2,2,C.out); PX(ctx,17,8,2,2,C.out); // eyes
+  // beard
+  PX(ctx,11,11,10,2,C.beard); PX(ctx,12,13,8,2,C.beard); PX(ctx,13,15,6,2,C.beard); PX(ctx,14,17,4,1,C.beard);
+}
+
+// ---- GOBLIN (32x32) ----
+function drawGoblin(ctx){
+  // ears
+  PX(ctx,3,7,5,2,C.gobD); PX(ctx,5,9,3,2,C.gob); PX(ctx,24,7,5,2,C.gobD); PX(ctx,24,9,3,2,C.gob);
+  // body
+  PX(ctx,11,17,10,8,C.gobDk); PX(ctx,12,18,8,5,C.gobD);
+  // head
+  PX(ctx,10,8,12,9,C.out); PX(ctx,11,9,10,7,C.gob); PX(ctx,11,8,10,1,C.gob); PX(ctx,11,16,10,1,C.gob);
+  // eyes (red, menacing)
+  PX(ctx,12,11,3,2,C.redL); PX(ctx,13,11,1,2,C.out); PX(ctx,17,11,3,2,C.redL); PX(ctx,18,11,1,2,C.out);
+  // mouth/teeth
+  PX(ctx,12,15,8,1,C.out); PX(ctx,13,14,1,1,C.bone); PX(ctx,16,14,1,1,C.bone); PX(ctx,18,14,1,1,C.bone);
+  // dagger
+  PX(ctx,24,11,2,8,C.steelL); PX(ctx,23,18,4,2,C.wood);
+  // feet
+  PX(ctx,11,25,3,2,C.out); PX(ctx,18,25,3,2,C.out);
+}
+
+// ---- DRAGON (40x32) ----
+function drawDragon(ctx){
+  // wings (stepped membranes)
+  for(let i=0;i<5;i++){ PX(ctx,2+i*2,4+i*2,8,2,C.redD); }
+  for(let i=0;i<5;i++){ PX(ctx,30-i*2,4+i*2,8,2,C.redD); }
+  // tail
+  PX(ctx,6,24,8,2,C.red); PX(ctx,10,22,8,2,C.red); PX(ctx,4,25,3,2,C.redD);
+  // body
+  PX(ctx,15,11,11,11,C.out); PX(ctx,16,12,9,9,C.red); PX(ctx,18,13,5,5,C.redL);
+  // legs
+  PX(ctx,16,22,3,4,C.redD); PX(ctx,22,22,3,4,C.redD);
+  // neck + head
+  PX(ctx,24,7,4,7,C.red); PX(ctx,26,3,9,6,C.out); PX(ctx,27,4,8,4,C.redL); PX(ctx,34,5,4,3,C.red);
+  // horns + eye + nostril
+  PX(ctx,27,1,2,2,C.bone); PX(ctx,31,1,2,2,C.bone);
+  PX(ctx,30,5,2,2,C.gold); PX(ctx,37,6,1,1,C.out);
+  // belly spikes
+  PX(ctx,17,10,1,1,C.bone); PX(ctx,20,10,1,1,C.bone); PX(ctx,23,10,1,1,C.bone);
+}
+
+// ---- POTION (16x20) ----
+function drawPotion(ctx){
+  PX(ctx,6,1,4,2,C.wood);            // cork
+  PX(ctx,6,3,4,3,C.glass);           // neck
+  PX(ctx,3,6,10,1,C.out);PX(ctx,2,7,12,9,C.out);PX(ctx,3,16,10,1,C.out); // outline
+  PX(ctx,4,7,8,2,C.glass);           // glass top
+  PX(ctx,4,9,8,6,C.pot);             // red liquid
+  PX(ctx,5,8,1,6,C.white);           // shine
+}
+
+// ---- 3x5 pixel digits for the die ----
+const DIG={
+ '0':['111','101','101','101','111'],'1':['010','110','010','010','111'],
+ '2':['111','001','111','100','111'],'3':['111','001','111','001','111'],
+ '4':['101','101','111','001','001'],'5':['111','100','111','001','111'],
+ '6':['111','100','111','101','111'],'7':['111','001','001','010','010'],
+ '8':['111','101','111','101','111'],'9':['111','101','111','001','111']};
+function drawNum(ctx,str,cx,cy,col){
+  const gw=3, total=str.length*gw+(str.length-1); let ox=cx-Math.floor(total/2);
+  for(const ch of str){ const g=DIG[ch]; for(let r=0;r<5;r++)for(let c=0;c<3;c++) if(g[r][c]==='1') PX(ctx,ox+c,cy+r,1,1,col); ox+=gw+1; }
+}
+// ---- DIE (30x30) ----
+function drawDie(ctx,num){
+  ctx.clearRect(0,0,30,30);
+  // hexagonal die body via stacked rows
+  const body=C.gold, edge=C.out, face=C.goldD;
+  PX(ctx,12,3,6,2,body);
+  PX(ctx,9,5,12,2,body); PX(ctx,7,7,16,3,body);
+  PX(ctx,6,10,18,8,body); PX(ctx,7,18,16,3,body);
+  PX(ctx,9,21,12,2,body); PX(ctx,12,23,6,2,body);
+  // top facet shade
+  PX(ctx,10,7,10,2,'#ffe49a');
+  // outline pixels (rough)
+  PX(ctx,12,2,6,1,edge);PX(ctx,9,4,3,1,edge);PX(ctx,18,4,3,1,edge);
+  PX(ctx,6,9,1,9,edge);PX(ctx,23,9,1,9,edge);PX(ctx,12,25,6,1,edge);
+  // number
+  drawNum(ctx,String(num),15,10,C.out);
+}
+
+// ---- LOGO (5x7 pixel font for the letters we need) ----
+const FONT={
+ 'D':['11110','10001','10001','10001','10001','10001','11110'],
+ 'U':['10001','10001','10001','10001','10001','10001','01110'],
+ 'N':['10001','11001','10101','10101','10011','10001','10001'],
+ 'G':['01110','10001','10000','10111','10001','10001','01110'],
+ 'E':['11111','10000','10000','11110','10000','10000','11111'],
+ 'O':['01110','10001','10001','10001','10001','10001','01110'],
+ 'S':['01111','10000','10000','01110','00001','00001','11110'],
+ 'I':['11111','00100','00100','00100','00100','00100','11111'],
+ 'C':['01110','10001','10000','10000','10000','10001','01110'],
+ ' ':['00000','00000','00000','00000','00000','00000','00000']};
+function drawWord(ctx,word,x,y,col,shadow){
+  let ox=x;
+  for(const ch of word){ const g=FONT[ch]||FONT[' '];
+    for(let r=0;r<7;r++)for(let c=0;c<5;c++) if(g[r][c]==='1'){
+      if(shadow) PX(ctx,ox+c,y+r+1,1,1,shadow);
+      PX(ctx,ox+c,y+r,1,1,col);
+    }
+    ox+=6;
+  }
+}
+function drawLogo(ctx){
+  ctx.clearRect(0,0,80,30);
+  drawWord(ctx,'DUNGEONS',2,2,C.gold,C.goldD);
+  drawWord(ctx,'N DICE',16,12,C.redL,C.redD);
+}
+
+// render everything
+drawDwarf(setup('c-dwarf',32,32).ctx);
+drawGoblin(setup('c-goblin',32,32).ctx);
+drawDragon(setup('c-dragon',40,32).ctx);
+drawPotion(setup('c-potion',16,20).ctx);
+drawLogo(setup('t-logo',80,30).ctx);
+// big title die (static 20)
+(function(){const s=setup('t-die',30,30);drawDie(s.ctx,20);})();
+
+// animated combat die — cycles then settles, redrawn each tick (pixel-crisp)
+const dieCtx=setup('c-die',30,30).ctx;
+let t=0; drawDie(dieCtx,14);
+setInterval(()=>{ t++; const n=(t%14===0)?18:1+Math.floor(Math.random()*20); drawDie(dieCtx,n); },90);
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeons n Dice — Style 2: Inked Bestiary</title>
+<style>
+  :root{
+    --paper:#e9dcc0; --paper2:#e1d2b0; --paper-d:#d8c6a0; --ink:#241a12; --ink2:#4a3a28;
+    --crimson:#8b1a1a; --gold:#9a6b1f; --line:#b9a47e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#3a3026;font-family:'Iowan Old Style',Georgia,'Times New Roman',serif;color:var(--ink);padding:28px;}
+  h1.page{margin:0 0 4px;color:#f0e6cf}
+  p.page{color:#cfc1a3;margin:0 0 24px;max-width:760px;font-style:italic}
+  .stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:360px;height:740px;border-radius:30px;background:
+      repeating-linear-gradient(0deg, rgba(180,160,120,.10) 0 2px, transparent 2px 4px),
+      radial-gradient(120% 90% at 50% 0%, #efe3c8 0%, #e3d3ad 70%, #d7c399 100%);
+    border:2px solid #2a2118;box-shadow:0 30px 70px rgba(0,0,0,.55), inset 0 0 60px rgba(120,90,50,.22);
+    overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .cap{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:3px;color:var(--ink2);text-transform:uppercase}
+  .frame{position:absolute;inset:14px;border:2px solid var(--ink);border-radius:18px;pointer-events:none;opacity:.55}
+  .frame:after{content:"";position:absolute;inset:4px;border:1px solid var(--ink);border-radius:14px;opacity:.5}
+  /* TITLE */
+  .title-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px}
+  .seal{width:120px;height:120px}
+  .logo{text-align:center;line-height:.95}
+  .logo .l1{font-size:54px;font-weight:800;color:var(--ink);letter-spacing:1px}
+  .logo .l2{font-size:54px;font-weight:800;color:var(--crimson);letter-spacing:1px;margin-top:-8px}
+  .logo .sub{margin-top:12px;color:var(--ink2);letter-spacing:5px;font-size:11px;text-transform:uppercase}
+  .rule{width:70%;height:0;border-top:2px solid var(--ink);opacity:.5;margin:4px 0}
+  .menu{display:flex;flex-direction:column;gap:14px;width:100%;margin-top:8px}
+  .btn{padding:14px;text-align:center;font-weight:700;letter-spacing:2px;color:var(--paper);
+    background:var(--ink);border:2px solid var(--ink);border-radius:4px;box-shadow:3px 3px 0 rgba(36,26,18,.35)}
+  .btn.alt{background:var(--crimson);border-color:#5e1010}
+  .foot{color:var(--ink2);font-size:11px;letter-spacing:2px;padding:14px;text-align:center;font-style:italic}
+  /* COMBAT */
+  .combat{flex:1;display:flex;flex-direction:column;padding:30px 14px 14px}
+  .init{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
+  .pip{font-size:10px;color:var(--ink2);border:1.5px solid var(--ink);border-radius:3px;padding:4px 8px;background:rgba(255,255,255,.18)}
+  .pip.on{color:var(--paper);background:var(--crimson);border-color:#5e1010;font-weight:700}
+  .enemies{display:flex;gap:10px;justify-content:center;margin:4px 0;min-height:172px;align-items:flex-end}
+  .unit{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .plate{border:2px solid var(--ink);border-radius:6px;background:rgba(255,250,235,.35);padding:6px}
+  .unit .name{font-size:11px;color:var(--ink);font-variant:small-caps;letter-spacing:1px}
+  .hpbar{width:88px;height:9px;border-radius:2px;background:rgba(60,40,20,.18);overflow:hidden;border:1.5px solid var(--ink)}
+  .hpbar i{display:block;height:100%;background:var(--crimson)}
+  .hpbar.good i{background:#3f6b2e}
+  .log{flex:1;margin:8px 2px;border:2px solid var(--ink);border-radius:6px;background:rgba(255,250,235,.3);
+    padding:10px;font-size:12px;line-height:1.7;overflow:hidden}
+  .log .crit{color:var(--crimson);font-weight:700}
+  .log .dmg{color:#7a2a12}
+  .log .sys{color:var(--ink2);font-style:italic}
+  .player{display:flex;align-items:center;gap:10px;border:2px solid var(--ink);border-radius:6px;background:rgba(255,250,235,.35);padding:8px 10px;margin:0 2px}
+  .player .name{color:var(--ink);font-weight:700;font-size:13px;font-variant:small-caps}
+  .actions{display:flex;gap:7px;margin:10px 2px 0}
+  .act{flex:1;text-align:center;padding:11px 4px;border-radius:4px;font-size:12px;font-weight:700;border:2px solid var(--ink);color:var(--paper);box-shadow:2px 2px 0 rgba(36,26,18,.3)}
+  .a-atk{background:var(--crimson);border-color:#5e1010}
+  .a-mag{background:#274a6b}
+  .a-pot{background:#3f6b2e}
+  .a-end{background:var(--ink2)}
+  /* dice overlay */
+  .diceover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(40,30,18,.55);pointer-events:none}
+  .die{width:120px;height:120px;animation:tumble 1.15s ease-in-out infinite}
+  .rolllabel{position:absolute;bottom:118px;left:0;right:0;text-align:center;color:var(--paper);letter-spacing:4px;font-size:12px;text-transform:uppercase;font-variant:small-caps}
+  @keyframes tumble{0%{transform:rotate(-12deg)}50%{transform:rotate(12deg) translateY(-6px)}100%{transform:rotate(-12deg)}}
+  /* crosshatch pattern for shading */
+</style>
+</head>
+<body>
+  <h1 class="page">Dungeons n Dice — Style 2: <span style="color:#d98b3b">Inked Bestiary</span></h1>
+  <p class="page">A hand-illustrated monster-manual aesthetic: aged parchment, bold black woodcut linework with cross-hatched shading, wax-seal crimson, and an old-world serif. Atmospheric and classically "D&D"; reads like a tome you're playing inside.</p>
+  <div class="stage">
+
+    <!-- TITLE -->
+    <div class="phone">
+      <span class="cap">Title</span><div class="frame"></div>
+      <div class="title-wrap">
+        <!-- wax-seal d20 -->
+        <svg class="seal" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="#8b1a1a" stroke="#241a12" stroke-width="3"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#5e1010" stroke-width="1" stroke-dasharray="3 3"/>
+          <polygon points="50,18 78,34 78,66 50,82 22,66 22,34" fill="#e9dcc0" stroke="#241a12" stroke-width="2.5"/>
+          <polygon points="50,18 78,34 50,46 22,34" fill="rgba(36,26,18,.12)"/>
+          <line x1="50" y1="46" x2="50" y2="82" stroke="#241a12" stroke-width="1.5"/>
+          <line x1="50" y1="46" x2="22" y2="34" stroke="#241a12" stroke-width="1.5"/>
+          <line x1="50" y1="46" x2="78" y2="34" stroke="#241a12" stroke-width="1.5"/>
+          <text x="50" y="64" font-family="Georgia,serif" font-weight="800" font-size="22" fill="#241a12" text-anchor="middle">20</text>
+        </svg>
+        <div class="logo">
+          <div class="l1">Dungeons</div>
+          <div class="l2">n Dice</div>
+          <div class="rule" style="margin:10px auto"></div>
+          <div class="sub">A d20 dungeon crawler</div>
+        </div>
+        <div class="menu">
+          <div class="btn">CONTINUE RUN — FLOOR 7</div>
+          <div class="btn alt">NEW CAMPAIGN</div>
+        </div>
+      </div>
+      <div class="foot">v0.3 — The Living Dungeon</div>
+    </div>
+
+    <!-- COMBAT -->
+    <div class="phone">
+      <span class="cap">Combat</span><div class="frame"></div>
+      <div class="combat">
+        <div class="init">
+          <span class="pip on">Thorin 18</span>
+          <span class="pip">Dragon 14</span>
+          <span class="pip">Goblin 9</span>
+        </div>
+
+        <div class="enemies">
+          <div class="unit">
+            <div class="plate">
+            <!-- GOBLIN ink -->
+            <svg width="70" height="80" viewBox="0 0 100 110">
+              <g fill="#cdb893" stroke="#241a12" stroke-width="3" stroke-linejoin="round">
+                <path d="M30 40 Q12 30 8 14 Q26 22 34 34Z"/><path d="M70 40 Q88 30 92 14 Q74 22 66 34Z"/>
+                <ellipse cx="50" cy="46" rx="24" ry="22"/>
+                <path d="M30 64 Q50 58 70 64 L66 98 Q50 104 34 98Z"/>
+              </g>
+              <g stroke="#241a12" stroke-width="1.2" opacity=".5"><line x1="58" y1="34" x2="68" y2="44"/><line x1="62" y1="32" x2="70" y2="40"/><line x1="58" y1="74" x2="64" y2="86"/></g>
+              <circle cx="41" cy="46" r="3.5" fill="#241a12"/><circle cx="59" cy="46" r="3.5" fill="#241a12"/>
+              <path d="M40 56 Q50 50 60 56" fill="none" stroke="#241a12" stroke-width="2.4"/>
+              <path d="M72 70 L96 58" stroke="#241a12" stroke-width="3.4" stroke-linecap="round"/>
+            </svg>
+            </div>
+            <div class="name">Goblin</div>
+            <div class="hpbar"><i style="width:60%"></i></div>
+          </div>
+          <div class="unit">
+            <div class="plate">
+            <!-- DRAGON ink -->
+            <svg width="120" height="112" viewBox="0 0 150 130">
+              <g fill="#cdb98f" stroke="#241a12" stroke-width="3.2" stroke-linejoin="round">
+                <path d="M20 70 Q-6 40 6 22 Q34 40 44 60Z"/><path d="M130 70 Q156 40 144 22 Q116 40 106 60Z"/>
+                <path d="M55 50 Q75 30 95 50 L104 92 Q75 108 46 92Z"/>
+                <path d="M95 44 Q120 30 126 12 Q128 34 110 52Z"/>
+                <circle cx="112" cy="40" r="13"/>
+                <path d="M70 100 Q60 122 38 124 Q54 110 56 98Z"/>
+              </g>
+              <g stroke="#241a12" stroke-width="1.2" opacity=".5">
+                <line x1="14" y1="34" x2="26" y2="46"/><line x1="22" y1="30" x2="34" y2="44"/>
+                <line x1="124" y1="34" x2="136" y2="46"/><line x1="116" y1="30" x2="128" y2="44"/>
+                <line x1="62" y1="70" x2="70" y2="86"/><line x1="74" y1="72" x2="82" y2="88"/>
+              </g>
+              <circle cx="116" cy="38" r="3.2" fill="#241a12"/>
+              <path d="M122 46 L138 44" stroke="#241a12" stroke-width="2.4"/>
+            </svg>
+            </div>
+            <div class="name">Ancient Dragon</div>
+            <div class="hpbar"><i style="width:82%"></i></div>
+          </div>
+        </div>
+
+        <div class="log">
+          <div><span class="crit">Natural 20!</span> Thorin's axe bites deep.</div>
+          <div><span class="dmg">— 27 slashing damage</span> (Dragon 82/240)</div>
+          <div class="sys">The goblin bares its rusted blade…</div>
+        </div>
+
+        <div class="player">
+          <!-- DWARF FIGHTER ink -->
+          <svg width="54" height="54" viewBox="0 0 100 100">
+            <g fill="#cdb893" stroke="#241a12" stroke-width="3" stroke-linejoin="round">
+              <path d="M30 30 Q50 18 70 30 L70 40 L30 40Z"/>
+              <rect x="34" y="40" width="32" height="10" rx="3"/>
+              <path d="M34 50 Q50 84 66 50Z" fill="#9a6b1f"/>
+              <rect x="32" y="50" width="36" height="34" rx="6"/>
+              <circle cx="78" cy="64" r="13" fill="#cdb893"/>
+            </g>
+            <rect x="38" y="36" width="8" height="6" fill="#241a12"/><rect x="54" y="36" width="8" height="6" fill="#241a12"/>
+            <path d="M22 60 L22 38 L30 38" stroke="#241a12" stroke-width="3" fill="none"/>
+            <path d="M78 58 L78 70" stroke="#241a12" stroke-width="2"/>
+          </svg>
+          <div style="flex:1">
+            <div class="name">Thorin · Lv 7 Fighter</div>
+            <div class="hpbar good" style="margin-top:6px"><i style="width:74%"></i></div>
+          </div>
+          <div style="font-size:11px;color:var(--ink2);text-align:right">AC 19<br>🪙 340</div>
+        </div>
+
+        <div class="actions">
+          <div class="act a-atk">⚔ Attack</div>
+          <div class="act a-mag">✦ Spells</div>
+          <div class="act a-pot">🧪 ×3</div>
+          <div class="act a-end">End</div>
+        </div>
+      </div>
+
+      <div class="diceover">
+        <svg class="die" viewBox="0 0 100 100">
+          <polygon points="50,10 84,30 84,70 50,90 16,70 16,30" fill="#e9dcc0" stroke="#241a12" stroke-width="3"/>
+          <polygon points="50,10 84,30 50,42 16,30" fill="rgba(36,26,18,.12)"/>
+          <line x1="50" y1="42" x2="50" y2="90" stroke="#241a12" stroke-width="1.5"/>
+          <line x1="50" y1="42" x2="16" y2="30" stroke="#241a12" stroke-width="1.5"/>
+          <line x1="50" y1="42" x2="84" y2="30" stroke="#241a12" stroke-width="1.5"/>
+          <text class="num" id="dnum" x="50" y="60" font-family="Georgia,serif" font-weight="800" font-size="30" fill="#8b1a1a" text-anchor="middle">14</text>
+        </svg>
+        <div class="rolllabel">Rolling initiative…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const el=document.getElementById('dnum');let t=0;
+  setInterval(()=>{t++; if(t%14===0){el.textContent='18';}else{el.textContent=1+Math.floor(Math.random()*20);}},80);
+</script>
+</body>
+</html>

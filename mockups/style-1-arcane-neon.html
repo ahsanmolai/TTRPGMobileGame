@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeons n Dice — Style 1: Arcane Neon</title>
+<style>
+  :root{
+    --bg:#07070c; --panel:#0d0f1c; --panel2:#12152a; --edge:#1d2348;
+    --gold:#ffd76a; --gold-dim:#b9912f; --crimson:#ff3b5c; --sapphire:#5b8cff;
+    --emerald:#39e6a8; --text:#e8ecff; --dim:#8a90b8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%, #14163a 0%, var(--bg) 60%);
+    font-family:'Trebuchet MS',Verdana,sans-serif;color:var(--text);padding:28px;}
+  h1.page{font-weight:800;letter-spacing:1px;margin:0 0 4px}
+  p.page{color:var(--dim);margin:0 0 24px;max-width:760px}
+  .stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:360px;height:740px;border-radius:34px;background:var(--bg);
+    border:2px solid var(--edge);box-shadow:0 0 0 6px #04040a, 0 30px 70px rgba(0,0,0,.6), inset 0 0 60px rgba(91,140,255,.06);
+    overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .cap{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:3px;color:var(--dim);text-transform:uppercase}
+  .neon{filter:drop-shadow(0 0 6px currentColor)}
+  /* ---------- TITLE SCREEN ---------- */
+  .title-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
+  .logo{text-align:center;line-height:.92}
+  .logo .l1,.logo .l2{font-family:Georgia,serif;font-weight:800;font-size:58px;color:var(--gold);
+    text-shadow:0 0 18px rgba(255,215,106,.55),0 0 40px rgba(255,215,106,.25);letter-spacing:3px}
+  .logo .l2{color:#fff;text-shadow:0 0 18px rgba(91,140,255,.7),0 0 40px rgba(91,140,255,.35)}
+  .logo .sub{margin-top:10px;color:var(--sapphire);letter-spacing:6px;font-size:12px;text-transform:uppercase}
+  .menu{display:flex;flex-direction:column;gap:14px;width:100%;margin-top:10px}
+  .btn{padding:15px;border-radius:12px;text-align:center;font-weight:700;letter-spacing:2px;
+    background:linear-gradient(180deg,#1a1030,#120a22);border:1.5px solid var(--gold);color:var(--gold);
+    box-shadow:0 0 16px rgba(255,215,106,.25), inset 0 0 18px rgba(255,215,106,.08)}
+  .btn.alt{border-color:var(--sapphire);color:#cdd9ff;box-shadow:0 0 16px rgba(91,140,255,.25)}
+  .foot{color:var(--dim);font-size:11px;letter-spacing:2px;padding:14px}
+  /* ---------- COMBAT SCREEN ---------- */
+  .combat{flex:1;display:flex;flex-direction:column;padding:30px 12px 12px}
+  .init{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
+  .pip{font-size:10px;color:var(--dim);border:1px solid var(--edge);border-radius:20px;padding:4px 8px;background:var(--panel)}
+  .pip.on{color:#07070c;background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,106,.6);font-weight:700}
+  .enemies{display:flex;gap:10px;justify-content:center;margin:6px 0 4px;min-height:170px;align-items:flex-end}
+  .unit{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .unit .name{font-size:11px;color:var(--text)}
+  .hpbar{width:84px;height:8px;border-radius:6px;background:#1a1024;overflow:hidden;border:1px solid var(--edge)}
+  .hpbar i{display:block;height:100%;background:linear-gradient(90deg,#ff3b5c,#ff7a3b);box-shadow:0 0 10px rgba(255,59,92,.7)}
+  .hpbar.good i{background:linear-gradient(90deg,#39e6a8,#5b8cff);box-shadow:0 0 10px rgba(57,230,168,.7)}
+  .log{flex:1;margin:8px 4px;border:1px solid var(--edge);border-radius:12px;background:linear-gradient(180deg,#0a0c18,#0c0f20);
+    padding:10px;font-size:11px;line-height:1.7;overflow:hidden}
+  .log .crit{color:var(--gold);text-shadow:0 0 8px rgba(255,215,106,.6)}
+  .log .dmg{color:var(--crimson)}
+  .log .sys{color:var(--dim)}
+  .player{display:flex;align-items:center;gap:10px;border:1px solid var(--edge);border-radius:12px;background:var(--panel);padding:8px 10px;margin:0 4px}
+  .player .name{color:var(--gold);font-weight:700;font-size:13px}
+  .actions{display:flex;gap:7px;margin:10px 4px 0}
+  .act{flex:1;text-align:center;padding:11px 4px;border-radius:10px;font-size:12px;font-weight:700;border:1.5px solid}
+  .a-atk{border-color:var(--crimson);color:#ffd2d9;background:rgba(255,59,92,.12);box-shadow:0 0 12px rgba(255,59,92,.2)}
+  .a-mag{border-color:var(--sapphire);color:#cdd9ff;background:rgba(91,140,255,.12)}
+  .a-pot{border-color:var(--emerald);color:#bff5e3;background:rgba(57,230,168,.12)}
+  .a-end{border-color:var(--edge);color:var(--dim)}
+  /* dice overlay */
+  .diceover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%, rgba(91,140,255,.18), rgba(7,7,12,.86) 60%);pointer-events:none}
+  .die{width:120px;height:120px;animation:tumble 1.1s cubic-bezier(.3,.8,.3,1) infinite}
+  .die polygon{fill:#120a22;stroke:var(--gold);stroke-width:2;filter:drop-shadow(0 0 10px rgba(255,215,106,.7))}
+  .die .num{font-family:Georgia,serif;font-weight:800;font-size:40px;fill:var(--gold);text-anchor:middle;dominant-baseline:central;
+    filter:drop-shadow(0 0 8px rgba(255,215,106,.8))}
+  .rolllabel{position:absolute;bottom:120px;left:0;right:0;text-align:center;color:var(--sapphire);letter-spacing:4px;font-size:12px;text-transform:uppercase}
+  @keyframes tumble{0%{transform:rotate(0) scale(.8)}50%{transform:rotate(220deg) scale(1.08)}100%{transform:rotate(360deg) scale(.8)}}
+  /* shared sprite sizing */
+  .spr{display:block}
+</style>
+</head>
+<body>
+  <h1 class="page">Dungeons n Dice — Style 1: <span style="color:#ffd76a">Arcane Neon</span></h1>
+  <p class="page">Evolves the current dark theme into a luminous, magical look: near-black depths, glowing gold/crimson/sapphire edges, sprites as softly-lit silhouettes. Dramatic and modern; the dice and every hit pulse with light. Best "wow" factor on a phone screen.</p>
+  <div class="stage">
+
+    <!-- TITLE -->
+    <div class="phone">
+      <span class="cap">Title</span>
+      <div class="title-wrap">
+        <!-- glowing d20 emblem -->
+        <svg width="120" height="120" viewBox="0 0 100 100" class="spr">
+          <polygon points="50,6 90,28 90,72 50,94 10,72 10,28" fill="#120a22" stroke="#ffd76a" stroke-width="2" style="filter:drop-shadow(0 0 10px rgba(255,215,106,.7))"/>
+          <polygon points="50,6 90,28 50,40 10,28" fill="rgba(91,140,255,.18)" stroke="#5b8cff" stroke-width="1"/>
+          <polygon points="50,40 90,28 90,72 50,94 10,72 10,28" fill="none" stroke="#b9912f" stroke-width="1"/>
+          <line x1="50" y1="40" x2="50" y2="94" stroke="#b9912f" stroke-width="1"/>
+          <text x="50" y="62" font-family="Georgia,serif" font-weight="800" font-size="26" fill="#ffd76a" text-anchor="middle" style="filter:drop-shadow(0 0 6px rgba(255,215,106,.8))">20</text>
+        </svg>
+        <div class="logo">
+          <div class="l1">Dungeons</div>
+          <div class="l2">n Dice</div>
+          <div class="sub">A d20 dungeon crawler</div>
+        </div>
+        <div class="menu">
+          <div class="btn">CONTINUE RUN — FLOOR 7</div>
+          <div class="btn alt">NEW CAMPAIGN</div>
+        </div>
+      </div>
+      <div class="foot" style="text-align:center">v0.3 — The Living Dungeon</div>
+    </div>
+
+    <!-- COMBAT -->
+    <div class="phone">
+      <span class="cap">Combat</span>
+      <div class="combat">
+        <div class="init">
+          <span class="pip on">Thorin 18</span>
+          <span class="pip">Dragon 14</span>
+          <span class="pip">Goblin 9</span>
+        </div>
+
+        <div class="enemies">
+          <div class="unit">
+            <!-- GOBLIN -->
+            <svg width="74" height="84" viewBox="0 0 100 110" class="spr neon" style="color:#39e6a8">
+              <g fill="#0f2a22" stroke="#39e6a8" stroke-width="2.4" stroke-linejoin="round">
+                <path d="M30 40 Q12 30 8 14 Q26 22 34 34Z"/><path d="M70 40 Q88 30 92 14 Q74 22 66 34Z"/>
+                <ellipse cx="50" cy="46" rx="24" ry="22"/>
+                <path d="M30 64 Q50 58 70 64 L66 98 Q50 104 34 98Z"/>
+              </g>
+              <circle cx="41" cy="46" r="4" fill="#ff3b5c"/><circle cx="59" cy="46" r="4" fill="#ff3b5c"/>
+              <path d="M40 56 Q50 62 60 56" fill="none" stroke="#39e6a8" stroke-width="2"/>
+              <path d="M72 70 L96 58" stroke="#b9912f" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <div class="name">Goblin</div>
+            <div class="hpbar"><i style="width:60%"></i></div>
+          </div>
+          <div class="unit">
+            <!-- DRAGON (boss, larger) -->
+            <svg width="128" height="120" viewBox="0 0 150 130" class="spr neon" style="color:#ff3b5c">
+              <g fill="#2a0c14" stroke="#ff3b5c" stroke-width="2.6" stroke-linejoin="round">
+                <path d="M20 70 Q-6 40 6 22 Q34 40 44 60Z"/><path d="M130 70 Q156 40 144 22 Q116 40 106 60Z"/>
+                <path d="M55 50 Q75 30 95 50 L104 92 Q75 108 46 92Z"/>
+                <path d="M95 44 Q120 30 126 12 Q128 34 110 52Z"/>
+                <circle cx="112" cy="40" r="13"/>
+                <path d="M70 100 Q60 122 38 124 Q54 110 56 98Z"/>
+              </g>
+              <circle cx="116" cy="38" r="3.4" fill="#ffd76a"/>
+              <path d="M122 46 L138 44" stroke="#ffd76a" stroke-width="2"/>
+            </svg>
+            <div class="name">Ancient Dragon</div>
+            <div class="hpbar"><i style="width:82%"></i></div>
+          </div>
+        </div>
+
+        <div class="log">
+          <div><span class="crit">⚔ Natural 20!</span> Thorin crits the Dragon.</div>
+          <div><span class="dmg">— 27 slashing</span> (Dragon 82/240)</div>
+          <div class="sys">The Goblin readies its blade…</div>
+        </div>
+
+        <div class="player">
+          <!-- DWARF FIGHTER -->
+          <svg width="56" height="56" viewBox="0 0 100 100" class="spr neon" style="color:#ffd76a">
+            <g fill="#1a1430" stroke="#ffd76a" stroke-width="2.4" stroke-linejoin="round">
+              <path d="M30 30 Q50 18 70 30 L70 40 L30 40Z"/>
+              <rect x="34" y="40" width="32" height="10" rx="3"/>
+              <path d="M34 50 Q50 84 66 50Z" fill="#5b3a1a" stroke="#b9912f"/>
+              <rect x="32" y="50" width="36" height="34" rx="6"/>
+              <circle cx="76" cy="64" r="13" fill="#12152a" stroke="#5b8cff"/>
+            </g>
+            <rect x="38" y="36" width="8" height="6" fill="#5b8cff"/><rect x="54" y="36" width="8" height="6" fill="#5b8cff"/>
+            <path d="M24 60 L24 40 L30 40" stroke="#c0c0c0" stroke-width="3" fill="none"/>
+          </svg>
+          <div style="flex:1">
+            <div class="name">Thorin · Lv 7 Fighter</div>
+            <div class="hpbar good" style="margin-top:6px"><i style="width:74%"></i></div>
+          </div>
+          <div style="font-size:11px;color:var(--dim);text-align:right">AC 19<br>🪙 340</div>
+        </div>
+
+        <div class="actions">
+          <div class="act a-atk">⚔ Attack</div>
+          <div class="act a-mag">✨ Spells</div>
+          <div class="act a-pot">🧪 ×3</div>
+          <div class="act a-end">End</div>
+        </div>
+      </div>
+
+      <!-- live dice roll overlay -->
+      <div class="diceover">
+        <svg class="die" viewBox="0 0 100 100">
+          <polygon points="50,6 90,28 90,72 50,94 10,72 10,28"/>
+          <polygon points="50,6 90,28 50,40 10,28" fill="rgba(91,140,255,.2)" stroke="#5b8cff" stroke-width="1"/>
+          <text class="num" id="dnum" x="50" y="52">14</text>
+        </svg>
+        <div class="rolllabel">Rolling initiative…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // tumbling number cycles then settles — mimics the in-combat d20 roll
+  const el=document.getElementById('dnum');let t=0;
+  setInterval(()=>{t++; if(t%14===0){el.textContent='18';}else{el.textContent=1+Math.floor(Math.random()*20);}},80);
+</script>
+</body>
+</html>

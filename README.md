@@ -1,4 +1,4 @@
-# TTRPG Combat — *Combat of the d20*
+# Dungeons n Dice
 
 A turn-by-turn roguelike dungeon crawler for iOS and Android, built with Expo and React Native. All combat rules, monsters, classes, and spells follow the D&D 5th Edition System Reference Document 5.1.
 

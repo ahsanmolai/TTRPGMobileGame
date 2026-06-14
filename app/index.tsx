@@ -29,8 +29,9 @@ export default function MainMenu() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>TTRPG</Text>
-        <Text style={styles.subtitle}>Combat of the d20</Text>
+        <Text style={styles.title}>Dungeons</Text>
+        <Text style={styles.titleLine2}>n Dice</Text>
+        <Text style={styles.subtitle}>A d20 dungeon crawler</Text>
         <Text style={styles.flavor}>
           Twenty floors. Five battles each.{'\n'}Climb from level 1 to legend — or die trying.
         </Text>
@@ -75,11 +76,19 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    fontSize: 72,
+    fontSize: 56,
     fontFamily: typography.fontFamily.serif,
     color: colors.accent.gold,
     fontWeight: '700',
     letterSpacing: 4,
+  },
+  titleLine2: {
+    fontSize: 56,
+    fontFamily: typography.fontFamily.serif,
+    color: colors.accent.gold,
+    fontWeight: '700',
+    letterSpacing: 4,
+    marginTop: -spacing.md,
   },
   subtitle: {
     fontSize: typography.fontSize.lg,
