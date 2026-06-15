@@ -38,7 +38,9 @@ A turn-by-turn roguelike dungeon crawler for iOS and Android, built with Expo an
 
 - Node.js 18+
 - npm 9+
-- Expo CLI: `npm install -g expo-cli` (optional, for device builds)
+- [EAS CLI](https://docs.expo.dev/eas/) (for on-device development builds): `npm install -g eas-cli`
+- An [Expo account](https://expo.dev/signup) (free) to run cloud builds
+- For iOS device builds only: an Apple Developer account + a registered device UDID
 
 ---
 
@@ -56,6 +58,55 @@ npm run ios      # requires macOS + Xcode
 npm run android  # requires Android Studio
 npm run web      # runs in browser
 ```
+
+---
+
+## Running on a physical device (Development Build)
+
+**Scanning the QR code in Expo Go shows "not compatible"** — and that's expected.
+This project pins bleeding-edge native versions (React Native 0.85, Reanimated 4
++ `react-native-worklets`) that the public Expo Go app doesn't bundle a matching
+runtime for. The supported way to run on a real phone is a **custom development
+build** that ships exactly this project's native modules. You scan the QR with
+*your own* build instead of Expo Go, so version mismatches go away.
+
+> Per the dependency rule in `AGENTS.md`, always add Expo packages with
+> `npx expo install <pkg>` (never `npm install`). `expo-dev-client` is already
+> installed and pinned; `npm run check:deps` enforces this.
+
+**One-time setup:**
+
+```bash
+npx expo install expo-dev-client   # already added to this repo
+npx eas login                      # authenticate to your Expo account
+npx eas build:configure            # links/creates the EAS project id (writes expo.extra.eas.projectId)
+```
+
+**Build the dev client** (Android is fastest — produces an installable `.apk`,
+no Apple account needed):
+
+```bash
+npx eas build --profile development --platform android
+# iOS device:    npx eas build --profile development --platform ios            (needs Apple account + registered UDID: `npx eas device:create`)
+# iOS Simulator: npx eas build --profile development-simulator --platform ios  (macOS only)
+```
+
+When the build finishes, install the artifact on your phone from the EAS build
+URL/QR.
+
+**Run it:**
+
+```bash
+npx expo start --dev-client   # or: npm run start:dev-client (also runs check:deps)
+```
+
+Scan the QR code with the installed **Dungeons n Dice** dev build (its launcher
+has a scanner), or open the `dungeonsndice://` deep link. Metro serves the JS
+bundle into your dev build and the game loads.
+
+> **Expo Go fallback:** Expo Go still works for quick JS-only checks where its
+> runtime is compatible, and `npm run web` is unaffected — but the dev build is
+> the canonical on-device workflow.
 
 ---
 

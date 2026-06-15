@@ -6,6 +6,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.3",
     "expo-constants": "~56.0.14",
+    "expo-dev-client": "~56.0.14",
     "expo-haptics": "~56.0.3",
     "expo-linking": "~56.0.11",
     "expo-router": "~56.2.5",
@@ -34,6 +35,8 @@
   "scripts": {
     "check:deps": "node scripts/check-deps.mjs",
     "prestart": "npm run check:deps",
+    "prestart:dev-client": "npm run check:deps",
+    "start:dev-client": "expo start --dev-client",
     "preweb": "npm run check:deps",
     "preandroid": "npm run check:deps",
     "preios": "npm run check:deps",
